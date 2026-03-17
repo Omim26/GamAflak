@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>GamAflak | Deep Space Contrast</title>
+    <link href="https://googleapis.com" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; background: #000; color: white; font-family: 'Orbitron', sans-serif; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
+        
+        /* Intro & Fusion */
+        #intro-layer { position: fixed; inset: 0; background: #000; z-index: 200; display: flex; align-items: center; justify-content: center; perspective: 1000px; cursor: pointer; transition: opacity 0.8s; }
+        #flash-bang { position: fixed; inset: 0; background: white; opacity: 0; z-index: 210; pointer-events: none; }
+        .word { position: absolute; font-size: 8vw; font-weight: 900; transition: all 1.6s cubic-bezier(0.19, 1, 0.22, 1); opacity: 0; }
+        #part-1 { color: #ff4444; transform: translateX(-150%) rotateY(30deg); }
+        #part-2 { color: #44ff44; transform: translateX(150%) rotateY(-30deg); }
+        .fusion-active #part-1 { opacity: 1; transform: translateX(-48%) rotateY(0deg); }
+        .fusion-active #part-2 { opacity: 1; transform: translateX(52%) rotateY(0deg); }
+        .kill-char { display: inline-block; transition: all 0.3s ease 1.3s; width: 0.8em; opacity: 1; }
+        .fusion-active .kill-char { width: 0; opacity: 0; transform: scale(0); }
+
+        /* Système Solaire */
+        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.65); }
+        #sun { width: 80px; height: 80px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 60px #ff6600; z-index: 100; cursor: pointer; }
+        
+        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; }
+        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; pointer-events: auto; box-shadow: inset -6px -6px 12px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 900; letter-spacing: -1px; }
+        .asteroid { position: absolute; background: #555; border-radius: 50%; opacity: 0.4; }
+
+        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        @keyframes flashAnim { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
+    </style>
+</head>
+<body>
+
+    <div id="flash-bang"></div>
+
+    <div id="intro-layer" onclick="runFusion()">
+        <div id="part-1" class="word">GAM<span class="kill-char">E</span></div>
+        <div id="part-2" class="word"><span class="kill-char">A</span>FLAK</div>
+    </div>
+
+    <div id="system-container">
+        <div id="sun" onclick="location.reload()"></div>
+    </div>
+
+    <script>
+        // DATA : Couleurs réelles et contraste (txt: #000 pour clair, #fff pour foncé)
+        const DATA = [
+            {n: "ME", c: "#A5A5A5", txt: "#000", size: 18, dist: 140, speed: 4.8},
+            {n: "VE", c: "#E3BB76", txt: "#000", size: 24, dist: 200, speed: 12.3},
+            {n: "EA", c: "#2271B3", txt: "#fff", size: 26, dist: 280, speed: 20},
+            {n: "MA", c: "#E27B58", txt: "#000", size: 22, dist: 350, speed: 37.6},
+            {belt: true, dist: 420},
+            {n: "JU", c: "#D39C7E", txt: "#000", size: 48, dist: 550, speed: 237},
+            {n: "SA", c: "#C5AB6E", txt: "#000", size: 42, dist: 680, speed: 589},
+            {n: "UR", c: "#BBE1E4", txt: "#000", size: 32, dist: 800, speed: 1680},
+            {n: "NE", c: "#6081FF", txt: "#fff", size: 32, dist: 920, speed: 3296}
+        ];
+
+        let audioCtx;
+
+        function playAudio() {
+            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const now = audioCtx.currentTime;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(40, now);
+            osc.frequency.exponentialRampToValueAtTime(1200, now + 1.4);
+            g.gain.setValueAtTime(0.2, now);
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(now + 1.5);
+        }
+
+        function buildSystem() {
+            const container = document.getElementById('system-container');
+            DATA.forEach(p => {
+                const orbit = document.createElement('div');
+                orbit.className = 'orbit';
+                orbit.style.width = orbit.style.height = p.dist + 'px';
+                orbit.style.animationDuration = p.speed + 's';
+
+                if (p.belt) {
+                    for (let i = 0; i < 80; i++) {
+                        const a = document.createElement('div');
+                        a.className = 'asteroid';
+                        a.style.width = a.style.height = (Math.random() * 3 + 1) + 'px';
+                        const ang = Math.random() * Math.PI * 2;
+                        const r = p.dist / 2;
+                        a.style.left = (Math.cos(ang) * r + r) + 'px';
+                        a.style.top = (Math.sin(ang) * r + r) + 'px';
+                        orbit.appendChild(a);
+                    }
+                } else {
+                    const planet = document.createElement('div');
+                    planet.className = 'planet';
+                    planet.style.width = planet.style.height = p.size + 'px';
+                    planet.style.backgroundColor = p.c;
+                    planet.style.color = p.txt;
+                    planet.innerText = p.n;
+                    orbit.appendChild(planet);
+                }
+                container.appendChild(orbit);
+            });
+        }
+
+        function runFusion() {
+            const intro = document.getElementById('intro-layer');
+            if (intro.classList.contains('fusion-active')) return;
+            intro.classList.add('fusion-active');
+            playAudio();
+            
+            setTimeout(() => {
+                document.getElementById('flash-bang').style.animation = "flashAnim 0.9s forwards";
+            }, 1300);
+
+            setTimeout(() => {
+                intro.style.opacity = '0';
+                setTimeout(() => {
+                    intro.style.display = 'none';
+                    buildSystem();
+                    document.getElementById('system-container').style.display = 'flex';
+                }, 800);
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
