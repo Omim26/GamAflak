@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GamAflak | Symphony Engine</title>
+    <title>GamAflak | Symphony 64px</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
@@ -20,18 +20,23 @@
         .kill-char { display: inline-block; transition: all 0.3s ease 1.3s; width: 0.8em; opacity: 1; }
         .fusion-active .kill-char { width: 0; opacity: 0; transform: scale(0); }
 
-        /* Menu de Sélection Musicale */
-        #music-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
-        .note-btn { background: #44ff44; border: none; color: #000; padding: 15px 30px; border-radius: 40px; font-size: 18px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; margin: 10px; transition: 0.3s; width: 200px; }
-        .note-btn:hover { transform: scale(1.1); background: #fff; }
+        /* Menu Musical */
+        #music-menu { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
+        .note-btn { background: #44ff44; border: none; color: #000; padding: 15px 40px; border-radius: 40px; font-size: 18px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; margin: 10px; transition: 0.3s; width: 220px; }
 
         /* Système Solaire */
-        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.6); }
-        #sun { width: 90px; height: 90px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 60px #ff6600; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 40px; font-weight: 900; color: #000; border: none; }
+        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.45); }
+        #sun { width: 120px; height: 120px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 80px #ff6600; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #000; }
         
         .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; }
-        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 32px; height: 32px; /* Taille Neptune fixe */ pointer-events: auto; box-shadow: inset -6px -6px 12px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; }
-        .asteroid { position: absolute; background: #555; border-radius: 50%; opacity: 0.4; }
+        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 18px; font-weight: 900; cursor: pointer; }
+        
+        /* Anneaux */
+        .rings { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border-radius: 50%; border: 8px solid rgba(255,255,255,0.2); pointer-events: none; }
+        .rings-sa { width: 130px; height: 130px; border-color: rgba(197, 171, 110, 0.4); }
+        .rings-ur { width: 110px; height: 110px; border-color: rgba(187, 225, 228, 0.3); transform: translate(-50%, -50%) rotateY(80deg); }
+
+        .asteroid { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 8px #fff; opacity: 0.8; } /* Brillance augmentée */
 
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
         @keyframes flashAnim { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
@@ -47,11 +52,11 @@
     </div>
 
     <div id="music-menu">
-        <h2 style="color:#ff4444; letter-spacing: 5px;">CHOISIR FRÉQUENCE</h2>
-        <button class="btn note-btn" onclick="initSystem(261.63)">DO (C)</button>
-        <button class="btn note-btn" onclick="initSystem(329.63)">MI (E)</button>
-        <button class="btn note-btn" onclick="initSystem(349.23)">FA (F)</button>
-        <button class="btn note-btn" onclick="initSystem(392.00)">SOL (G)</button>
+        <h2 style="color:#ff4444; letter-spacing: 5px;">SÉLECTIONNER TONIQUE</h2>
+        <button class="note-btn" onclick="initSystem(261.63)">DO (C)</button>
+        <button class="note-btn" onclick="initSystem(329.63)">MI (E)</button>
+        <button class="note-btn" onclick="initSystem(349.23)">FA (F)</button>
+        <button class="note-btn" onclick="initSystem(392.00)">SOL (G)</button>
     </div>
 
     <div id="system-container">
@@ -59,41 +64,41 @@
     </div>
 
     <script>
+        // Intervalles de l'échelle majeure (Do=1, Ré=1.125, Mi=1.25, Fa=1.33, Sol=1.5, La=1.66, Si=1.87, Do2=2)
+        const SCALE_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
+        
         const DATA = [
-            {n: "ME", c: "#A5A5A5", txt: "#000", dist: 150, speed: 4.8},
-            {n: "VE", c: "#E3BB76", txt: "#000", dist: 220, speed: 12.3},
-            {n: "EA", c: "#2271B3", txt: "#fff", dist: 300, speed: 20},
-            {n: "MA", c: "#E27B58", txt: "#000", dist: 380, speed: 37.6},
-            {belt: true, dist: 460},
-            {n: "JU", c: "#D39C7E", txt: "#000", dist: 600, speed: 237},
-            {n: "SA", c: "#C5AB6E", txt: "#000", dist: 750, speed: 589},
-            {n: "UR", c: "#BBE1E4", txt: "#000", dist: 900, speed: 1680},
-            {n: "NE", c: "#6081FF", txt: "#fff", dist: 1050, speed: 3296}
+            {n: "ME", c: "#A5A5A5", tx: "#000", d: 180, s: 4.8},
+            {n: "VE", c: "#E3BB76", tx: "#000", d: 280, s: 12.3},
+            {n: "EA", c: "#2271B3", tx: "#fff", d: 400, s: 20},
+            {n: "MA", c: "#E27B58", tx: "#000", d: 520, s: 37.6},
+            {belt: true, d: 620},
+            {n: "JU", c: "#D39C7E", tx: "#000", d: 780, s: 237},
+            {n: "SA", c: "#C5AB6E", tx: "#000", d: 950, s: 589, rings: "sa"},
+            {n: "UR", c: "#BBE1E4", tx: "#000", d: 1100, s: 1680, rings: "ur"},
+            {n: "NE", c: "#6081FF", tx: "#fff", d: 1250, s: 3296}
         ];
 
         let audioCtx, baseFreq;
 
-        function playImpactSound() {
+        function playSound(freq) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const now = audioCtx.currentTime;
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(40, now);
-            osc.frequency.exponentialRampToValueAtTime(1000, now + 1.4);
-            g.gain.setValueAtTime(0.2, now);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            g.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            g.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1);
             osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(); osc.stop(now + 1.5);
+            osc.start(); osc.stop(audioCtx.currentTime + 1);
         }
 
         function runFusion() {
             const intro = document.getElementById('intro-layer');
             if (intro.classList.contains('fusion-active')) return;
             intro.classList.add('fusion-active');
-            playImpactSound();
             
             setTimeout(() => { document.getElementById('flash-bang').style.animation = "flashAnim 0.9s forwards"; }, 1300);
-
             setTimeout(() => {
                 intro.style.opacity = '0';
                 setTimeout(() => {
@@ -109,30 +114,41 @@
             const container = document.getElementById('system-container');
             container.style.display = 'flex';
 
-            DATA.forEach(p => {
+            let planetIdx = 0;
+            DATA.forEach((p) => {
                 const orbit = document.createElement('div');
                 orbit.className = 'orbit';
-                orbit.style.width = orbit.style.height = p.dist + 'px';
-                orbit.style.animationDuration = p.speed + 's';
+                orbit.style.width = orbit.style.height = p.d + 'px';
+                orbit.style.animationDuration = p.s + 's';
 
                 if (p.belt) {
-                    for (let i = 0; i < 80; i++) {
+                    for (let i = 0; i < 100; i++) {
                         const a = document.createElement('div');
                         a.className = 'asteroid';
-                        a.style.width = a.style.height = (Math.random() * 3 + 1) + 'px';
+                        a.style.width = a.style.height = (Math.random() * 5 + 2) + 'px';
                         const ang = Math.random() * Math.PI * 2;
-                        const r = p.dist / 2;
+                        const r = p.d / 2;
                         a.style.left = (Math.cos(ang) * r + r) + 'px';
                         a.style.top = (Math.sin(ang) * r + r) + 'px';
                         orbit.appendChild(a);
                     }
                 } else {
+                    const planetFreq = baseFreq * SCALE_RATIOS[planetIdx];
                     const planet = document.createElement('div');
                     planet.className = 'planet';
                     planet.style.backgroundColor = p.c;
-                    planet.style.color = p.txt;
+                    planet.style.color = p.tx;
                     planet.innerText = p.n;
+                    planet.onclick = (e) => { e.stopPropagation(); playSound(planetFreq); };
+                    
+                    if(p.rings) {
+                        const r = document.createElement('div');
+                        r.className = `rings rings-${p.rings}`;
+                        planet.appendChild(r);
+                    }
+                    
                     orbit.appendChild(planet);
+                    planetIdx++;
                 }
                 container.appendChild(orbit);
             });
