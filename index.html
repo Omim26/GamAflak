@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GamAflak | Pro Tuned</title>
+    <title>GamAflak | Speed Tuned Real Color</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
@@ -20,27 +20,26 @@
         .kill-char { display: inline-block; transition: all 0.3s ease 1.3s; width: 0.8em; opacity: 1; }
         .fusion-active .kill-char { width: 0; opacity: 0; transform: scale(0); }
 
-        /* Menu Horizontal */
-        #main-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .menu-row { display: flex; flex-direction: row; gap: 15px; margin: 20px 0; flex-wrap: wrap; justify-content: center; }
-        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 12px 25px; border-radius: 5px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; transition: 0.3s; min-width: 120px; }
-        .btn:hover { background: #44ff44; color: #000; box-shadow: 0 0 15px #44ff44; }
-        .btn.active { background: #ff4444; border-color: #ff4444; color: #fff; }
+        /* Interface Menus */
+        #main-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        .menu-row { display: flex; flex-direction: row; gap: 15px; margin: 15px 0; justify-content: center; }
+        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 12px 25px; border-radius: 5px; font-size: 14px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; transition: 0.3s; }
+        .btn:hover, .btn.active { background: #44ff44; color: #000; box-shadow: 0 0 15px #44ff44; }
+        #pilot-registration { display: none; margin-top: 20px; }
+        input { background: rgba(255,255,255,0.1); border: 1px solid #ff4444; color: white; padding: 10px; font-family: 'Orbitron'; text-align: center; border-radius: 5px; width: 250px; outline: none; margin: 5px; }
 
         /* Système Solaire */
-        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.4); }
+        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.32); }
         #sun { width: 120px; height: 120px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 80px #ff6600; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #000; }
         
-        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; transition: 0.3s; }
-        /* Illumination de l'orbite au survol */
-        .orbit.highlight { border: 3px solid #44ff44; box-shadow: 0 0 20px #44ff44; z-index: 80; opacity: 1; }
+        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; transition: 0.4s; }
+        /* L'éclat de l'orbite prendra la couleur de la planète via JS */
+        .orbit.highlight { border-width: 4px; opacity: 1; z-index: 80; }
         
-        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; transition: transform 0.2s; }
-        .planet:hover { transform: translate(-50%, -50%) scale(1.2); }
-        
-        .rings { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border-radius: 50%; border: 8px solid rgba(255,255,255,0.2); pointer-events: none; }
-        .rings-sa { width: 130px; height: 130px; border-color: rgba(197, 171, 110, 0.4); }
-        .rings-ur { width: 110px; height: 110px; border-color: rgba(187, 225, 228, 0.3); transform: translate(-50%, -50%) rotateY(80deg); }
+        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; }
+        .rings { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%) rotateX(75deg); border-radius: 50%; border: 8px solid rgba(255,255,255,0.2); }
+        .rings-sa { width: 130px; height: 130px; border-color: rgba(197, 171, 110, 0.5); }
+        .rings-ur { width: 110px; height: 110px; border-color: rgba(187, 225, 228, 0.4); transform: translate(-50%, -50%) rotateY(80deg); }
         .asteroid { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 8px #fff; opacity: 0.8; }
 
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -57,24 +56,24 @@
     </div>
 
     <div id="main-overlay">
-        <h1 style="color:#ff4444; letter-spacing: 10px; margin-bottom: 0;">GAMAFLAK</h1>
-        
-        <p style="color:#44ff44; margin-top:40px;">1. CHOIX DE LA NOTE</p>
+        <h1 style="color:#ff4444; letter-spacing: 10px;">GAMAFLAK</h1>
+        <p style="color:#44ff44;">1. SÉLECTION NOTE</p>
         <div class="menu-row" id="note-row">
             <button class="btn" onclick="setNote(this, 261.63)">DO</button>
             <button class="btn" onclick="setNote(this, 329.63)">MI</button>
             <button class="btn" onclick="setNote(this, 349.23)">FA</button>
             <button class="btn" onclick="setNote(this, 392.00)">SOL</button>
         </div>
-
         <p style="color:#44ff44;">2. NOMBRE DE PILOTES</p>
         <div class="menu-row" id="player-row">
-            <button class="btn" onclick="setPlayers(this, 1)">1 JOUEUR</button>
-            <button class="btn" onclick="setPlayers(this, 2)">2 JOUEURS</button>
-            <button class="btn" onclick="setPlayers(this, 4)">4 JOUEURS</button>
+            <button class="btn" onclick="showPilotReg(1, this)">1</button>
+            <button class="btn" onclick="showPilotReg(2, this)">2</button>
+            <button class="btn" onclick="showPilotReg(4, this)">4</button>
         </div>
-
-        <button class="btn" style="margin-top:40px; border-color:#fff; color:#fff; width:300px;" onclick="launchGame()">LANCER LA MISSION</button>
+        <div id="pilot-registration">
+            <div id="input-container"></div>
+            <button class="btn" style="margin-top:20px; border-color:#fff; color:#fff; width:280px;" onclick="launchMission()">DÉCOLLAGE</button>
+        </div>
     </div>
 
     <div id="system-container">
@@ -82,20 +81,20 @@
     </div>
 
     <script>
-        const SCALE_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
         const DATA = [
-            {n: "Me", c: "#A5A5A5", tx: "#000", d: 200, s: 4.8},
-            {n: "Ve", c: "#E3BB76", tx: "#000", d: 320, s: 12.3},
-            {n: "Ea", c: "#2271B3", tx: "#fff", d: 460, s: 20},
-            {n: "Ma", c: "#E27B58", tx: "#000", d: 600, s: 37.6},
+            {n: "Me", c: "#b2b2b2", tx: "#000", d: 200, s: 4.8}, // Gris rocheux
+            {n: "Ve", c: "#e3bb76", tx: "#000", d: 320, s: 12.3}, // Jaune ocre
+            {n: "Ea", c: "#2271b3", tx: "#fff", d: 460, s: 20.0}, // Bleu océan
+            {n: "Ma", c: "#e27b58", tx: "#000", d: 600, s: 37.6}, // Rouge ferreux
             {belt: true, d: 720},
-            {n: "Ju", c: "#D39C7E", tx: "#000", d: 900, s: 237},
-            {n: "Sa", c: "#C5AB6E", tx: "#000", d: 1100, s: 589, rings: "sa"},
-            {n: "Ur", c: "#BBE1E4", tx: "#000", d: 1300, s: 1680, rings: "ur"},
-            {n: "Ne", c: "#6081FF", tx: "#fff", d: 1500, s: 3296}
+            // Vitesses x20 pour les 4 dernières (ex: 237s / 20 = 11.85s)
+            {n: "Ju", c: "#d39c7e", tx: "#000", d: 900, s: 11.85}, 
+            {n: "Sa", c: "#c5ab6e", tx: "#000", d: 1100, s: 29.45, rings: "sa"},
+            {n: "Ur", c: "#bbe1e4", tx: "#000", d: 1300, s: 84.0, rings: "ur"},
+            {n: "Ne", c: "#6081ff", tx: "#fff", d: 1500, s: 164.8}
         ];
 
-        let audioCtx, selectedFreq = 261.63, playerCount = 1;
+        let audioCtx, selectedFreq = 261.63;
 
         function setNote(btn, freq) {
             document.querySelectorAll('#note-row .btn').forEach(b => b.classList.remove('active'));
@@ -103,40 +102,31 @@
             selectedFreq = freq;
         }
 
-        function setPlayers(btn, count) {
+        function showPilotReg(count, btn) {
             document.querySelectorAll('#player-row .btn').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            playerCount = count;
-        }
-
-        function playNote(f) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator();
-            const g = audioCtx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(f, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 1);
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 1);
+            const container = document.getElementById('input-container');
+            container.innerHTML = '';
+            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="NOM PILOTE ${i}" id="p${i}" maxlength="10">`;
+            document.getElementById('pilot-registration').style.display = 'block';
         }
 
         function runFusion() {
             const intro = document.getElementById('intro-layer');
             if (intro.classList.contains('fusion-active')) return;
             intro.classList.add('fusion-active');
-            setTimeout(() => { document.getElementById('flash-bang').style.animation = "flashAnim 0.9s forwards"; }, 1300);
+            setTimeout(() => { document.getElementById('flash-bang').style.animation = "flashAnim 1s forwards"; }, 1300);
             setTimeout(() => {
                 intro.style.display = 'none';
                 document.getElementById('main-overlay').style.display = 'flex';
-            }, 3500);
+            }, 3200);
         }
 
-        function launchGame() {
+        function launchMission() {
             document.getElementById('main-overlay').style.display = 'none';
             const container = document.getElementById('system-container');
             container.style.display = 'flex';
 
-            let pIdx = 0;
             DATA.forEach(p => {
                 const orbit = document.createElement('div');
                 orbit.className = 'orbit';
@@ -144,17 +134,23 @@
                 orbit.style.animationDuration = p.s + 's';
 
                 if (!p.belt) {
-                    const freq = selectedFreq * SCALE_RATIOS[pIdx];
                     const planet = document.createElement('div');
                     planet.className = 'planet';
                     planet.style.backgroundColor = p.c;
                     planet.style.color = p.tx;
                     planet.innerText = p.n;
                     
-                    // Effets de Focus sur l'orbite
-                    planet.onmouseenter = () => orbit.classList.add('highlight');
-                    planet.onmouseleave = () => orbit.classList.remove('highlight');
-                    planet.onclick = () => playNote(freq);
+                    // Illumination Orbitale de la couleur de la planète
+                    planet.onmouseenter = () => {
+                        orbit.classList.add('highlight');
+                        orbit.style.borderColor = p.c;
+                        orbit.style.boxShadow = `0 0 30px ${p.c}`;
+                    };
+                    planet.onmouseleave = () => {
+                        orbit.classList.remove('highlight');
+                        orbit.style.borderColor = 'rgba(255,255,255,0.08)';
+                        orbit.style.boxShadow = 'none';
+                    };
 
                     if(p.rings) {
                         const r = document.createElement('div');
@@ -162,9 +158,8 @@
                         planet.appendChild(r);
                     }
                     orbit.appendChild(planet);
-                    pIdx++;
                 } else {
-                    for(let i=0; i<100; i++) {
+                    for(let i=0; i<80; i++) {
                         const a = document.createElement('div');
                         a.className = 'asteroid';
                         a.style.width = a.style.height = (Math.random()*4+2)+'px';
