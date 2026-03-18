@@ -3,21 +3,16 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gamaflak | Système Alpha Consolidé</title>
+    <title>Gamaflak | Système Alpha Synchro</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #000; color: white; font-family: 'Orbitron', sans-serif; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
         
-        /* 1. Intro & Fusion Gamaflak (Rotation 30°) */
-        #intro-layer { 
-            position: fixed; inset: 0; z-index: 200; 
-            background: url('https://unsplash.com') center/cover;
-            display: flex; align-items: center; justify-content: center; cursor: pointer;
-        }
+        /* 1. Intro & Fusion Gamaflak */
+        #intro-layer { position: fixed; inset: 0; z-index: 200; background: url('https://unsplash.com') center/cover; display: flex; align-items: center; justify-content: center; cursor: pointer; }
         #intro-layer::before { content: ""; position: absolute; inset: 0; background: rgba(0,0,0,0.6); z-index: -1; }
         #flash-bang { position: fixed; inset: 0; background: white; opacity: 0; z-index: 210; pointer-events: none; }
-        
         .word { position: absolute; font-size: 8vw; font-weight: 900; transition: all 1.6s cubic-bezier(0.19, 1, 0.22, 1); opacity: 0; }
         #part-1 { color: #ff4444; transform: translateX(-150%) rotateY(30deg); }
         #part-2 { color: #44ff44; transform: translateX(150%) rotateY(-30deg); }
@@ -26,35 +21,31 @@
         .kill-e { display: inline-block; transition: all 0.2s ease 1.3s; width: 0.8em; opacity: 1; }
         .fusion-active .kill-e { width: 0; opacity: 0; transform: scale(0); }
 
-        /* 2. HUD & Scores Séparés */
-        #score-board { position: fixed; top: 20px; right: 20px; z-index: 100; display: none; flex-direction: column; gap: 10px; }
-        .player-card { background: rgba(0,0,0,0.85); border: 2px solid #44ff44; padding: 10px 15px; border-radius: 10px; min-width: 180px; transition: 0.3s; }
-        .player-card.leader { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; transform: scale(1.05); }
-        .player-pts { color: #44ff44; font-size: 22px; font-weight: 900; }
-        
-        #chrono-hud { position: fixed; top: 20px; left: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border-left: 5px solid #ff4444; font-size: 28px; color: #ff4444; font-weight: 900; }
-        #scanner { position: fixed; bottom: 20px; right: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.85); border: 1px solid #44ff44; padding: 15px; text-align: right; min-width: 220px; }
-
-        /* 3. Menus & Validation Stricte */
+        /* 2. Menu Horizontal & Validation Stricte */
         #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .menu-step { display: none; flex-direction: column; align-items: center; }
+        .menu-row { display: flex; flex-direction: row; gap: 10px; margin: 15px 0; flex-wrap: wrap; justify-content: center; }
+        .menu-step { display: none; flex-direction: column; align-items: center; width: 100%; }
         .active-step { display: flex; }
-        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 12px 30px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron'; margin: 8px; font-weight: 900; }
-        input { background: rgba(255,255,255,0.1); border: 2px solid #ff4444; color: white; padding: 12px; text-align: center; width: 280px; margin: 8px; font-family: 'Orbitron'; }
+        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron'; font-weight: 900; transition: 0.3s; }
+        .btn:hover, .btn.active { background: #44ff44; color: #000; box-shadow: 0 0 15px #44ff44; }
+        input { background: rgba(255,255,255,0.1); border: 2px solid #ff4444; color: white; padding: 12px; text-align: center; width: 250px; margin: 5px; font-family: 'Orbitron'; }
+
+        /* 3. HUD & Scores Séparés */
+        #score-board { position: fixed; top: 20px; right: 20px; z-index: 100; display: none; flex-direction: column; gap: 10px; }
+        .player-card { background: rgba(0,0,0,0.85); border: 2px solid #44ff44; padding: 10px; border-radius: 10px; min-width: 160px; transition: 0.3s; }
+        .player-card.leader { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; }
+        .player-pts { color: #44ff44; font-size: 22px; font-weight: 900; }
+        #chrono-hud { position: fixed; top: 20px; left: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.8); padding: 15px; border-left: 5px solid #ff4444; font-size: 28px; color: #ff4444; font-weight: 900; }
 
         /* 4. Univers (Zoom 0.47 & Sphères 64px) */
         #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.47); }
         #sun { width: 120px; height: 120px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 80px #ff6600; z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #000; cursor: pointer; }
-        
         .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; }
         .orbit.highlight { border-width: 5px; opacity: 1; z-index: 80; border-style: solid; }
-        
         .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; }
-        
-        /* Anneaux & Astéroïdes */
         .rings { position: absolute; top: 50%; left: 50%; border-radius: 50%; border: 6px solid rgba(255,255,255,0.25); pointer-events: none; }
-        .rings-sa { width: 140px; height: 140px; transform: translate(-50%, -50%) rotateX(75deg); border-color: rgba(197, 171, 110, 0.5); }
-        .rings-ur { width: 120px; height: 120px; transform: translate(-50%, -50%) rotateY(85deg); border-color: rgba(187, 225, 228, 0.4); }
+        .rings-sa { width: 140px; height: 140px; transform: translate(-50%, -50%) rotateX(75deg); border-color: rgba(197, 171, 110, 0.4); }
+        .rings-ur { width: 120px; height: 120px; transform: translate(-50%, -50%) rotateY(85deg); border-color: rgba(187, 225, 228, 0.3); }
         .asteroid { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 12px #fff; opacity: 0.9; }
 
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -66,7 +57,6 @@
     <div id="flash-bang"></div>
     <div id="chrono-hud">02:00</div>
     <div id="score-board"></div>
-    <div id="scanner"><h3 id="p-name" style="color:#ff4444;margin:0;">---</h3><p id="p-dist" style="color:#44ff44;margin:5px 0 0;">---</p></div>
 
     <div id="intro-layer" onclick="startEngine()">
         <div id="part-1" class="word">GAM<span class="kill-e">E</span></div>
@@ -74,23 +64,30 @@
     </div>
 
     <div id="overlay">
-        <h1 style="color:#ff4444; letter-spacing: 15px;">GAMAFLAK</h1>
+        <h1 style="color:#ff4444; letter-spacing: 10px;">GAMAFLAK</h1>
+        
         <div id="step-1" class="menu-step active-step">
-            <p style="color:#44ff44;">1. SÉLECTION NOTE</p>
-            <button class="btn" onclick="validateStep(1, 2, 261.63)">DO (C)</button>
-            <button class="btn" onclick="validateStep(1, 2, 329.63)">MI (E)</button>
-            <button class="btn" onclick="validateStep(1, 2, 349.23)">FA (F)</button>
-            <button class="btn" onclick="validateStep(1, 2, 392.00)">SOL (G)</button>
+            <p style="color:#44ff44;">1. TONALITÉ MAJEURE</p>
+            <div class="menu-row">
+                <button class="btn" onclick="validateStep(1, 2, 261.63)">DO</button>
+                <button class="btn" onclick="validateStep(1, 2, 329.63)">MI</button>
+                <button class="btn" onclick="validateStep(1, 2, 349.23)">FA</button>
+                <button class="btn" onclick="validateStep(1, 2, 392.00)">SOL</button>
+            </div>
         </div>
+
         <div id="step-2" class="menu-step">
-            <p style="color:#44ff44;">2. ESCADRILLE</p>
-            <button class="btn" onclick="preparePilots(1)">1 PILOTE</button>
-            <button class="btn" onclick="preparePilots(2)">2 PILOTES</button>
-            <button class="btn" onclick="preparePilots(4)">4 PILOTES</button>
+            <p style="color:#44ff44;">2. NOMBRE DE PILOTES</p>
+            <div class="menu-row">
+                <button class="btn" onclick="preparePilots(1)">1</button>
+                <button class="btn" onclick="preparePilots(2)">2</button>
+                <button class="btn" onclick="preparePilots(4)">4</button>
+            </div>
         </div>
+
         <div id="step-3" class="menu-step">
-            <p style="color:#44ff44;">3. IDENTIFICATION REQUISE</p>
-            <div id="pilot-inputs"></div>
+            <p style="color:#44ff44;">3. IDENTIFICATION DES PILOTES</p>
+            <div id="pilot-inputs" class="menu-row"></div>
             <button class="btn" style="border-color:#fff; color:#fff;" onclick="launchMission()">DÉCOLLAGE</button>
         </div>
     </div>
@@ -98,24 +95,19 @@
     <div id="system-container"><div id="sun" onclick="location.reload()">S</div></div>
 
     <script>
-        const SCALE = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
+        // Ratios échelle majeure : Do, Ré, Mi, Fa, Sol, La, Si, Do (octave)
+        const MUSIC_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
         const DATA = [
-            {n: "Me", f: "MERCURE", c: "#b2b2b2", d: 220, s: 4.8, km: 57.9},
-            {n: "Ve", f: "VÉNUS", c: "#e3bb76", d: 350, s: 12.3, km: 108.2},
-            {n: "Ea", f: "TERRE", c: "#2271b3", d: 480, s: 20.0, km: 149.6},
-            {n: "Ma", f: "MARS", c: "#e27b58", d: 610, s: 37.6, km: 227.9},
+            {n: "Me", d: 220, s: 4.8, c: "#b2b2b2"}, {n: "Ve", d: 350, s: 12.3, c: "#e3bb76"},
+            {n: "Ea", d: 480, s: 20.0, c: "#2271b3"}, {n: "Ma", d: 610, s: 37.6, c: "#e27b58"},
             {belt: true, d: 740},
-            // Jupiter ralentie de 20% (11.8s -> 14.16s)
-            {n: "Ju", f: "JUPITER", c: "#d39c7e", d: 920, s: 14.16, km: 778.6},
-            {n: "Sa", f: "SATURNE", c: "#c5ab6e", d: 1150, s: 29.4, km: 1433.5, rings: "sa"},
-            {n: "Ur", f: "URANUS", c: "#bbe1e4", d: 1350, s: 84.0, km: 2872.5, rings: "ur"},
-            // Neptune boostée de 25% (126.7s -> 101.3s)
-            {n: "Ne", f: "NEPTUNE", c: "#6081ff", d: 1550, s: 101.3, km: 4495.1}
+            {n: "Ju", d: 920, s: 14.1, c: "#d39c7e"}, {n: "Sa", d: 1150, s: 29.4, c: "#c5ab6e", rings: "sa"},
+            {n: "Ur", d: 1350, s: 84.0, c: "#bbe1e4", rings: "ur"}, {n: "Ne", d: 1550, s: 101.3, c: "#6081ff"}
         ];
 
         let audioCtx, selectedFreq, pilots = [], scores = {}, timeLeft = 120;
 
-        function playSfx(f, dur=0.8) {
+        function playSfx(f, dur=0.6) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
@@ -150,7 +142,7 @@
         function preparePilots(count) {
             const container = document.getElementById('pilot-inputs');
             container.innerHTML = '';
-            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="NOM PILOTE ${i}" id="p${i}">`;
+            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="PILOTE ${i}" id="p${i}">`;
             validateStep(2, 3);
         }
 
@@ -160,28 +152,23 @@
             inputs.forEach(inp => {
                 if(!inp.value.trim()) allFilled = false;
                 let name = inp.value.toUpperCase();
-                pilots.push(name);
+                if(!pilots.includes(name)) pilots.push(name);
                 scores[name] = 0;
             });
-            if(!allFilled) { alert("Tous les noms requis !"); pilots=[]; return; }
-            
+            if(!allFilled) { alert("Noms requis !"); pilots=[]; return; }
             document.getElementById('overlay').style.display = 'none';
             document.getElementById('score-board').style.display = 'flex';
             document.getElementById('chrono-hud').style.display = 'block';
-            document.getElementById('scanner').style.display = 'block';
             document.getElementById('system-container').style.display = 'flex';
-            
-            updateScoreUI();
-            startChrono();
-            buildUniverse();
+            updateScoreUI(); buildUniverse(); startChrono();
         }
 
         function updateScoreUI() {
             const max = Math.max(...Object.values(scores));
             document.getElementById('score-board').innerHTML = pilots.map(p => `
                 <div class="player-card ${scores[p] === max && max > 0 ? 'leader' : ''}">
-                    <div style="font-size:12px">${p}</div>
-                    <div class="player-pts">${scores[p]} <small style="font-size:10px">PTS</small></div>
+                    <div style="font-size:10px">${p}</div>
+                    <div class="player-pts">${scores[p]}</div>
                 </div>
             `).join('');
         }
@@ -197,13 +184,15 @@
 
         function buildUniverse() {
             const container = document.getElementById('system-container');
-            DATA.forEach((p, i) => {
+            let pIdx = 0;
+            DATA.forEach((p) => {
                 const orbit = document.createElement('div');
                 orbit.className = 'orbit';
                 orbit.style.width = orbit.style.height = p.d + 'px';
                 orbit.style.animationDuration = p.s + 's';
 
                 if (!p.belt) {
+                    const freq = selectedFreq * MUSIC_RATIOS[pIdx];
                     const planet = document.createElement('div');
                     planet.className = 'planet';
                     planet.style.backgroundColor = p.c;
@@ -211,21 +200,26 @@
                     
                     planet.onmouseenter = () => {
                         orbit.classList.add('highlight'); orbit.style.borderColor = orbit.style.boxShadow = p.c;
-                        document.getElementById('p-name').innerText = p.f;
-                        document.getElementById('p-dist').innerText = p.km + " M KM";
-                        playSfx(selectedFreq * (1 + (i*0.1)));
+                        playSfx(freq);
                     };
                     planet.onmouseleave = () => { orbit.classList.remove('highlight'); orbit.style.borderColor = 'rgba(255,255,255,0.08)'; orbit.style.boxShadow = 'none'; };
-                    planet.onclick = () => { scores[pilots[0]] += 100; updateScoreUI(); };
                     
+                    // CORRECTION SCORE : Le clic ajoute 100 pts au premier pilote pour ce test local
+                    planet.onclick = () => { 
+                        scores[pilots[0]] += 100; 
+                        updateScoreUI(); 
+                        playSfx(freq * 1.5, 0.2); 
+                    };
+
                     if(p.rings) {
                         const r = document.createElement('div');
                         r.className = `rings rings-${p.rings}`;
                         planet.appendChild(r);
                     }
                     orbit.appendChild(planet);
+                    pIdx++;
                 } else {
-                    for(let j=0; j<100; j++) {
+                    for(let j=0; j<80; j++) {
                         const a = document.createElement('div'); a.className = 'asteroid';
                         a.style.width = a.style.height = (Math.random()*6+3)+'px';
                         const ang = Math.random()*Math.PI*2, rad = p.d/2;
