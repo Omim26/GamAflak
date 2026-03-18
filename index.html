@@ -3,40 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gamaflak | Mission OS</title>
+    <title>Gamaflak | Mission Alpha</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
         * { box-sizing: border-box; }
         body { margin: 0; background: #000; color: white; font-family: 'Orbitron', sans-serif; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
         
-        /* Intro & Fusion */
         #intro-layer { position: fixed; inset: 0; background: #000; z-index: 200; display: flex; align-items: center; justify-content: center; perspective: 1000px; cursor: pointer; }
         #flash-bang { position: fixed; inset: 0; background: white; opacity: 0; z-index: 210; pointer-events: none; }
         .word { position: absolute; font-size: 8vw; font-weight: 900; transition: all 1.6s cubic-bezier(0.19, 1, 0.22, 1); opacity: 0; }
         #part-1 { color: #ff4444; transform: translateX(-150%) rotateY(30deg); }
         #part-2 { color: #44ff44; transform: translateX(150%) rotateY(-30deg); }
-        
-        /* Fusion Gamaflak : on garde le A de AFLAK */
         .fusion-active #part-1 { opacity: 1; transform: translateX(-40%) rotateY(0deg); }
         .fusion-active #part-2 { opacity: 1; transform: translateX(42%) rotateY(0deg); }
         .kill-e { display: inline-block; transition: all 0.2s ease 1.3s; width: 0.8em; opacity: 1; }
         .fusion-active .kill-e { width: 0; opacity: 0; transform: scale(0); }
 
-        /* Menus Stricts */
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; text-align: center; }
+        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
         .menu-step { display: none; flex-direction: column; align-items: center; }
         .active-step { display: flex; }
-        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 15px 30px; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; margin: 10px; transition: 0.3s; min-width: 200px; }
+        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 15px 30px; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; font-family: 'Orbitron'; margin: 10px; transition: 0.3s; min-width: 220px; }
         .btn:hover { background: #44ff44; color: #000; box-shadow: 0 0 20px #44ff44; }
         input { background: rgba(255,255,255,0.1); border: 2px solid #ff4444; color: white; padding: 15px; font-family: 'Orbitron'; text-align: center; border-radius: 5px; width: 300px; outline: none; margin: 10px; font-size: 18px; }
 
-        /* HUD & Univers */
-        #chronos { position: fixed; top: 20px; left: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.8); padding: 15px; border-left: 5px solid #44ff44; }
-        #scanner { position: fixed; bottom: 30px; right: 30px; z-index: 100; display: none; background: rgba(0,0,0,0.8); border: 1px solid #ff4444; padding: 20px; text-align: right; }
+        #hud { position: fixed; top: 20px; left: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.8); padding: 15px; border-left: 5px solid #ff4444; }
+        #timer-display { color: #ff4444; font-size: 24px; font-weight: 900; margin-bottom: 10px; }
+        #scanner { position: fixed; bottom: 30px; right: 30px; z-index: 100; display: none; background: rgba(0,0,0,0.8); border: 1px solid #44ff44; padding: 20px; text-align: right; }
+
         #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.468); }
         #sun { width: 120px; height: 120px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 80px #ff6600; z-index: 100; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #000; }
-        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; }
-        .orbit.highlight { border-width: 5px; opacity: 1; z-index: 80; }
+        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; transition: 0.3s; }
+        .orbit.highlight { border-width: 5px; opacity: 1; z-index: 80; border-style: solid; }
         .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; }
 
         @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
@@ -46,23 +43,20 @@
 <body>
 
     <div id="flash-bang"></div>
-    <div id="chronos"></div>
+    <div id="hud"><div id="timer-display">02:00</div><div id="pilot-list"></div></div>
     <div id="scanner"><h3 id="p-name">---</h3><p id="p-dist">---</p></div>
 
-    <!-- Intro -->
     <div id="intro-layer" onclick="startEngine()">
         <div id="part-1" class="word">GAM<span class="kill-e">E</span></div>
         <div id="part-2" class="word">AFLAK</div>
     </div>
 
-    <!-- Overlay avec Validation Stricte -->
     <div id="overlay">
-        <h1 id="game-title" style="color:#ff4444; letter-spacing: 15px; margin-bottom: 40px; display:none;">GAMAFLAK</h1>
+        <h1 style="color:#ff4444; letter-spacing: 15px; margin-bottom: 40px;">GAMAFLAK</h1>
         
-        <!-- Étape 1 : Note -->
         <div id="step-1" class="menu-step active-step">
-            <p style="color:#44ff44;">1. CHOIX DE LA FRÉQUENCE MAJEURE</p>
-            <div>
+            <p style="color:#44ff44;">1. SÉLECTION FRÉQUENCE</p>
+            <div id="notes">
                 <button class="btn" onclick="validateStep(1, 2, 261.63)">DO</button>
                 <button class="btn" onclick="validateStep(1, 2, 329.63)">MI</button>
                 <button class="btn" onclick="validateStep(1, 2, 349.23)">FA</button>
@@ -70,21 +64,19 @@
             </div>
         </div>
 
-        <!-- Étape 2 : Joueurs -->
         <div id="step-2" class="menu-step">
-            <p style="color:#44ff44;">2. CONFIGURATION DE L'ESCADRILLE</p>
-            <div>
+            <p style="color:#44ff44;">2. NOMBRE DE PILOTES</p>
+            <div id="players">
                 <button class="btn" onclick="preparePilots(1)">1 PILOTE</button>
                 <button class="btn" onclick="preparePilots(2)">2 PILOTES</button>
                 <button class="btn" onclick="preparePilots(4)">4 PILOTES</button>
             </div>
         </div>
 
-        <!-- Étape 3 : Noms -->
         <div id="step-3" class="menu-step">
-            <p style="color:#44ff44;">3. ENREGISTREMENT DES IDENTITÉS</p>
+            <p style="color:#44ff44;">3. IDENTIFICATION (TOUS LES CHAMPS REQUIS)</p>
             <div id="pilot-inputs"></div>
-            <button class="btn" style="border-color:#fff; color:#fff;" onclick="validateFinal()">DÉCOLLAGE IMMÉDIAT</button>
+            <button class="btn" style="border-color:#fff; color:#fff;" onclick="validateFinal()">LANCER LA MISSION</button>
         </div>
     </div>
 
@@ -100,18 +92,16 @@
             {n: "Ju", full: "JUPITER", c: "#d39c7e", tx: "#000", d: 920, s: 11.8, distM: 778.6},
             {n: "Sa", full: "SATURNE", c: "#c5ab6e", tx: "#000", d: 1150, s: 29.4, distM: 1433.5},
             {n: "Ur", full: "URANUS", c: "#bbe1e4", tx: "#000", d: 1350, s: 84.0, distM: 2872.5},
-            {n: "Ne", full: "NEPTUNE", c: "#6081ff", tx: "#fff", d: 1550, s: 126.7, distM: 4495.1}
+            // Neptune accélérée encore de 25% (126.7 / 1.25 = 101.3)
+            {n: "Ne", full: "NEPTUNE", c: "#6081ff", tx: "#fff", d: 1550, s: 101.3, distM: 4495.1}
         ];
 
-        let audioCtx, selectedFreq, pilots = [], startTime;
+        let audioCtx, selectedFreq, pilots = [], timeLeft = 120;
 
-        // Moteur Audio Robuste
-        function playSfx(f, type='sine', vol=0.3, dur=1) {
+        function playSfx(f, vol=0.3, dur=0.5) {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
             const osc = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.type = type;
             osc.frequency.setValueAtTime(f, audioCtx.currentTime);
             g.gain.setValueAtTime(vol, audioCtx.currentTime);
             g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
@@ -121,55 +111,68 @@
 
         function startEngine() {
             const intro = document.getElementById('intro-layer');
-            if (intro.classList.contains('fusion-active')) return;
             intro.classList.add('fusion-active');
-            
-            // Activation forcée de l'AudioContext au clic
-            playSfx(60, 'sawtooth', 0.2, 1.5);
-
+            playSfx(60, 0.2, 1.5);
             setTimeout(() => {
                 document.getElementById('flash-bang').style.animation = "flash 1s forwards";
-                playSfx(100, 'triangle', 0.8, 2);
+                playSfx(100, 0.8, 2);
             }, 1300);
-
             setTimeout(() => {
                 intro.style.display = 'none';
                 document.getElementById('overlay').style.display = 'flex';
-                document.getElementById('game-title').style.display = 'block';
-                // Musique de fond d'overlay
-                setInterval(() => { if(document.getElementById('overlay').style.display === 'flex') playSfx(200, 'sine', 0.05, 3); }, 3000);
             }, 3200);
         }
 
-        function validateStep(current, next, val) {
+        function validateStep(cur, next, val) {
             if(val) selectedFreq = val;
-            playSfx(selectedFreq, 'sine', 0.3, 0.5);
-            document.getElementById(`step-${current}`).classList.remove('active-step');
+            playSfx(selectedFreq || 440);
+            document.getElementById(`step-${cur}`).classList.remove('active-step');
             document.getElementById(`step-${next}`).classList.add('active-step');
         }
 
         function preparePilots(count) {
             const container = document.getElementById('pilot-inputs');
             container.innerHTML = '';
-            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="NOM PILOTE ${i}" id="p${i}" maxlength="10">`;
+            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="NOM PILOTE ${i}" id="p${i}" required>`;
             validateStep(2, 3);
         }
 
         function validateFinal() {
             const inputs = document.querySelectorAll('#pilot-inputs input');
-            inputs.forEach(inp => { if(inp.value) pilots.push(inp.value.toUpperCase()); });
-            if(pilots.length === 0) pilots = ["ALPHA"];
-            
+            let allFilled = true;
+            pilots = [];
+            inputs.forEach(inp => {
+                if(!inp.value.trim()) allFilled = false;
+                pilots.push(inp.value.toUpperCase());
+            });
+
+            if(!allFilled) {
+                alert("ERREUR : Tous les noms de pilotes doivent être renseignés !");
+                return;
+            }
+
             document.getElementById('overlay').style.display = 'none';
-            document.getElementById('chronos').style.display = 'block';
+            document.getElementById('hud').style.display = 'block';
             document.getElementById('scanner').style.display = 'block';
-            startTime = Date.now();
+            document.getElementById('pilot-list').innerHTML = pilots.join(" | ");
             
-            // Lancement du système
-            const container = document.getElementById('system-container');
-            container.style.display = 'flex';
+            document.getElementById('system-container').style.display = 'flex';
             buildUniverse();
-            animateChronos();
+            startTimer();
+        }
+
+        function startTimer() {
+            const timerInt = setInterval(() => {
+                timeLeft--;
+                const mins = Math.floor(timeLeft / 60);
+                const secs = timeLeft % 60;
+                document.getElementById('timer-display').innerText = `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+                if(timeLeft <= 0) {
+                    clearInterval(timerInt);
+                    alert("MISSION ÉCHOUÉE : Temps écoulé !");
+                    location.reload();
+                }
+            }, 1000);
         }
 
         function buildUniverse() {
@@ -193,22 +196,17 @@
                         orbit.style.boxShadow = `0 0 40px ${p.c}`;
                         document.getElementById('p-name').innerText = p.full;
                         document.getElementById('p-dist').innerText = p.distM + " M km";
-                        playSfx(selectedFreq * (1 + (i*0.1)), 'sine', 0.2, 0.5);
+                        playSfx(selectedFreq * (1 + (i*0.1)));
                     };
                     planet.onmouseleave = () => {
                         orbit.classList.remove('highlight');
-                        orbit.style.borderColor = 'rgba(255,255,255,0.08)';
+                        orbit.style.borderColor = 'rgba(255,255,255,0.08)'; // RETOUR À L'ÉTAT INITIAL
+                        orbit.style.boxShadow = 'none';
                     };
                     orbit.appendChild(planet);
                 }
                 container.appendChild(orbit);
             });
-        }
-
-        function animateChronos() {
-            const diff = ((Date.now() - startTime) / 1000).toFixed(2);
-            document.getElementById('chronos').innerHTML = pilots.map(p => `<div>${p} : ${diff}s</div>`).join('');
-            if(document.getElementById('system-container').style.display === 'flex') requestAnimationFrame(animateChronos);
         }
     </script>
 </body>
