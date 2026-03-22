@@ -1,222 +1,420 @@
-<!DOCTYPE html>
-<html lang="fr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Gamaflak | Mission Alpha Final</title>
-    <link href="https://googleapis.com" rel="stylesheet">
-    <style>
-        * { box-sizing: border-box; }
-        body { margin: 0; background: #000; color: white; font-family: 'Orbitron', sans-serif; height: 100vh; overflow: hidden; display: flex; align-items: center; justify-content: center; touch-action: none; }
-        
-        /* 1. IMAGE DE DÉMARRAGE (Ton image devient le déclencheur) */
-        #intro-layer { 
-            position: fixed; inset: 0; z-index: 200; 
-            background: url('ardeco_cover_01.jpg') center/cover; /* L'image doit être dans le même dossier que le fichier HTML */
-            background-color: #111; display: flex; align-items: center; justify-content: center; cursor: pointer; 
-        }
-        #intro-layer::after { content: "CLIQUEZ POUR DÉMARRER"; position: absolute; bottom: 10%; color: #44ff44; letter-spacing: 3px; animation: blink 1.5s infinite; font-size: 14px; background: rgba(0,0,0,0.6); padding: 10px; border-radius: 5px; }
+/**
+ * @license
+ * SPDX-License-Identifier: Apache-2.0
+ */
 
-        #flash-bang { position: fixed; inset: 0; background: white; opacity: 0; z-index: 210; pointer-events: none; }
-        .word { position: absolute; font-size: 8vw; font-weight: 900; transition: all 1.6s cubic-bezier(0.19, 1, 0.22, 1); opacity: 0; pointer-events: none; }
-        
-        /* CORRECTION CHEVAUCHEMENT : Ajustement des translate X pour "GamAflak" */
-        #part-1 { color: #ff4444; transform: translateX(-150%) rotateY(30deg); }
-        #part-2 { color: #44ff44; transform: translateX(150%) rotateY(-30deg); }
-        .fusion-active #part-1 { opacity: 1; transform: translateX(-43%) rotateY(0deg); } /* Décalé pour libérer le M */
-        .fusion-active #part-2 { opacity: 1; transform: translateX(45%) rotateY(0deg); } /* Décalé pour placer le A */
-        
-        .kill-e { display: inline-block; transition: all 0.2s ease 1.3s; width: 0.8em; opacity: 1; }
-        .fusion-active .kill-e { width: 0; opacity: 0; transform: scale(0); }
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
+import { Rocket, Timer, Trophy, Music, Users, Play } from 'lucide-react';
 
-        /* 2. MENUS HORIZONTAUX & VALIDATION */
-        #overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.98); z-index: 150; display: none; flex-direction: column; align-items: center; justify-content: center; }
-        .menu-row { display: flex; flex-direction: row; gap: 15px; margin: 15px 0; justify-content: center; flex-wrap: wrap; }
-        .menu-step { display: none; flex-direction: column; align-items: center; width: 100%; }
-        .active-step { display: flex; }
-        .btn { background: transparent; border: 2px solid #44ff44; color: #44ff44; padding: 12px 25px; border-radius: 5px; cursor: pointer; font-family: 'Orbitron'; font-weight: 900; transition: 0.3s; min-width: 180px; }
-        .btn:hover, .btn.active { background: #44ff44; color: #000; box-shadow: 0 0 15px #44ff44; }
-        input { background: rgba(255,255,255,0.1); border: 2px solid #ff4444; color: white; padding: 12px; text-align: center; width: 250px; margin: 5px; font-family: 'Orbitron'; outline: none; }
+// Constants from original code
+const MUSIC_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
+interface PlanetData {
+  n?: string;
+  fullName?: string;
+  realDistance?: number;
+  c?: string;
+  tx?: string;
+  d: number;
+  s?: number;
+  belt?: boolean;
+  rings?: string;
+}
 
-        /* 3. HUD SCORES SÉPARÉS */
-        #score-board { position: fixed; top: 20px; right: 20px; z-index: 100; display: none; flex-direction: column; gap: 10px; }
-        .player-card { background: rgba(0,0,0,0.85); border: 2px solid #44ff44; padding: 10px; border-radius: 10px; min-width: 160px; }
-        .player-card.leader { border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00; }
-        .pts-val { color: #44ff44; font-size: 22px; font-weight: 900; }
-        #chrono-hud { position: fixed; top: 20px; left: 20px; z-index: 100; display: none; background: rgba(0,0,0,0.8); padding: 15px; border-left: 5px solid #ff4444; font-size: 28px; color: #ff4444; font-weight: 900; }
+const DATA: PlanetData[] = [
+  { n: "Me", fullName: "MERCURE", realDistance: 57.9, c: "#A5A5A5", tx: "#000", d: 220, s: 4.8 },
+  { n: "Ve", fullName: "VÉNUS", realDistance: 108.2, c: "#E3BB76", tx: "#000", d: 350, s: 12.3 },
+  { n: "Ea", fullName: "TERRE", realDistance: 149.6, c: "#2271B3", tx: "#fff", d: 480, s: 20.0 },
+  { n: "Ma", fullName: "MARS", realDistance: 227.9, c: "#E27B58", tx: "#000", d: 610, s: 37.6 },
+  { belt: true, d: 740 },
+  { n: "Ju", fullName: "JUPITER", realDistance: 778.5, c: "#D39C7E", tx: "#000", d: 920, s: 14.1 },
+  { n: "Sa", fullName: "SATURNE", realDistance: 1434, c: "#C5AB6E", tx: "#000", d: 1150, s: 29.4, rings: "sa" },
+  { n: "Ur", fullName: "URANUS", realDistance: 2871, c: "#BBE1E4", tx: "#000", d: 1350, s: 84.0, rings: "ur" },
+  { n: "Ne", fullName: "NEPTUNE", realDistance: 4495, c: "#6081FF", tx: "#fff", d: 1550, s: 101.3 }
+];
 
-        /* 4. UNIVERS (Zoom 0.47 & 64px) */
-        #system-container { position: relative; width: 100vw; height: 100vh; display: none; align-items: center; justify-content: center; transform: scale(0.47); }
-        #sun { width: 120px; height: 120px; background: radial-gradient(circle, #fff, #ffcc00, #ff6600); border-radius: 50%; box-shadow: 0 0 80px #ff6600; z-index: 100; display: flex; align-items: center; justify-content: center; font-size: 60px; font-weight: 900; color: #000; cursor: pointer; }
-        .orbit { position: absolute; border: 1px solid rgba(255,255,255,0.08); border-radius: 50%; animation: rotate linear infinite; pointer-events: none; }
-        .orbit.highlight { border-width: 5px; opacity: 1; z-index: 80; border-style: solid; }
-        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; width: 64px; height: 64px; pointer-events: auto; box-shadow: inset -10px -10px 20px rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; font-size: 20px; font-weight: 900; cursor: pointer; }
-        
-        .rings { position: absolute; top: 50%; left: 50%; border-radius: 50%; border: 6px solid rgba(255,255,255,0.25); pointer-events: none; }
-        .rings-sa { width: 140px; height: 140px; transform: translate(-50%, -50%) rotateX(75deg); border-color: rgba(197, 171, 110, 0.4); }
-        .rings-ur { width: 120px; height: 120px; transform: translate(-50%, -50%) rotateY(85deg); border-color: rgba(187, 225, 228, 0.3); }
-        .asteroid { position: absolute; background: #fff; border-radius: 50%; box-shadow: 0 0 12px #fff; opacity: 0.9; }
+type GameState = 'intro' | 'menu' | 'playing' | 'gameover';
 
-        @keyframes rotate { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
-        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
-        @keyframes flash { 0% { opacity: 0; } 20% { opacity: 1; } 100% { opacity: 0; } }
-    </style>
-</head>
-<body>
+export default function App() {
+  const [gameState, setGameState] = useState<GameState>('intro');
+  const [menuStep, setMenuStep] = useState(1);
+  const [selectedFreq, setSelectedFreq] = useState(261.63);
+  const [pilots, setPilots] = useState<string[]>([]);
+  const [scores, setScores] = useState<Record<string, number>>({});
+  const [timeLeft, setTimeLeft] = useState(120);
+  const [fusionActive, setFusionActive] = useState(false);
+  const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
+  
+  const audioCtxRef = useRef<AudioContext | null>(null);
 
-    <div id="flash-bang"></div>
-    <div id="chrono-hud">02:00</div>
-    <div id="score-board"></div>
+  // Audio utility
+  const playSfx = useCallback((f: number, dur = 0.6, type: OscillatorType = 'sine') => {
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+    }
+    const ctx = audioCtxRef.current;
+    if (ctx.state === 'suspended') ctx.resume();
+    
+    const osc = ctx.createOscillator();
+    const g = ctx.createGain();
+    osc.type = type;
+    osc.frequency.setValueAtTime(f, ctx.currentTime);
+    g.gain.setValueAtTime(0.3, ctx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+    osc.connect(g);
+    g.connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + dur);
+  }, []);
 
-    <div id="intro-layer" onclick="startEngine()">
-        <div id="part-1" class="word">GAM<span class="kill-e">E</span></div>
-        <div id="part-2" class="word">AFLAK</div>
-    </div>
+  // Timer logic
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (gameState === 'playing' && timeLeft > 0) {
+      timer = setInterval(() => {
+        setTimeLeft((prev) => prev - 1);
+      }, 1000);
+    } else if (timeLeft === 0) {
+      setGameState('gameover');
+    }
+    return () => clearInterval(timer);
+  }, [gameState, timeLeft]);
 
-    <div id="overlay">
-        <h1 style="color:#ff4444; letter-spacing: 15px;">GAMAFLAK</h1>
-        <div id="step-1" class="menu-step active-step">
-            <p style="color:#44ff44;">1. TONALITÉ</p>
-            <div class="menu-row">
-                <button class="btn" onclick="validateStep(1, 2, 261.63)">DO (C)</button>
-                <button class="btn" onclick="validateStep(1, 2, 392.00)">SOL (G)</button>
+  const startEngine = () => {
+    if (fusionActive) return;
+    setFusionActive(true);
+    playSfx(40, 1.3, 'sawtooth');
+    
+    setTimeout(() => {
+      playSfx(80, 2, 'triangle');
+      if (navigator.vibrate) navigator.vibrate(100);
+    }, 1300);
+
+    setTimeout(() => {
+      setGameState('menu');
+    }, 3500);
+  };
+
+  const handlePlanetClick = (planet: PlanetData, freq: number) => {
+    setSelectedPlanet(planet);
+    // In this version, we cycle through pilots for scoring or just score the first one for simplicity
+    const currentPilot = pilots[0];
+    if (currentPilot) {
+      setScores(prev => ({
+        ...prev,
+        [currentPilot]: (prev[currentPilot] || 0) + 100
+      }));
+    }
+    playSfx(freq);
+    if (navigator.vibrate) navigator.vibrate(50);
+  };
+
+  const formatTime = (seconds: number) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  const maxScore = pilots.length > 0 ? Math.max(...(Object.values(scores) as number[])) : 0;
+
+  return (
+    <div className="min-h-screen bg-black text-white font-['Orbitron'] overflow-hidden flex items-center justify-center select-none touch-none">
+      
+      {/* Intro Layer */}
+      <AnimatePresence>
+        {gameState === 'intro' && (
+          <motion.div 
+            initial={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer bg-[#111]"
+            onClick={startEngine}
+            style={{
+              backgroundImage: 'url(https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=1920)',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}
+          >
+            <div className="relative flex items-center justify-center text-[8vw] font-black">
+              <motion.div
+                animate={fusionActive ? { x: '-43%', rotateY: 0, opacity: 1 } : { x: '-150%', rotateY: 30, opacity: 0 }}
+                transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
+                className="text-red-500"
+              >
+                GAM<motion.span animate={fusionActive ? { width: 0, opacity: 0, scale: 0 } : { width: '0.8em', opacity: 1, scale: 1 }} className="inline-block">E</motion.span>
+              </motion.div>
+              <motion.div
+                animate={fusionActive ? { x: '45%', rotateY: 0, opacity: 1 } : { x: '150%', rotateY: -30, opacity: 0 }}
+                transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
+                className="text-green-500"
+              >
+                AFLAK
+              </motion.div>
             </div>
-        </div>
-        <div id="step-2" class="menu-step">
-            <p style="color:#44ff44;">2. ESCADRILLE</p>
-            <div class="menu-row">
-                <button class="btn" onclick="preparePilots(1)">1 PILOTE</button>
-                <button class="btn" onclick="preparePilots(2)">2 PILOTES</button>
-                <button class="btn" onclick="preparePilots(4)">4 PILOTES</button>
-            </div>
-        </div>
-        <div id="step-3" class="menu-step">
-            <p style="color:#44ff44;">3. IDENTIFICATION DES PILOTES</p>
-            <div id="pilot-inputs" class="menu-row"></div>
-            <button class="btn" style="border-color:#fff; color:#fff;" onclick="launchMission()">DÉCOLLAGE</button>
-        </div>
-    </div>
+            {!fusionActive && (
+              <motion.div 
+                animate={{ opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="absolute bottom-[10%] text-green-400 tracking-[3px] text-sm bg-black/60 px-4 py-2 rounded"
+              >
+                CLIQUEZ POUR DÉMARRER
+              </motion.div>
+            )}
+            {fusionActive && (
+              <motion.div 
+                initial={{ opacity: 0 }}
+                animate={{ opacity: [0, 1, 0] }}
+                transition={{ delay: 1.3, duration: 1 }}
+                className="fixed inset-0 bg-white z-[60] pointer-events-none"
+              />
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-    <div id="system-container"><div id="sun" onclick="location.reload()">S</div></div>
-
-    <script>
-        const MUSIC_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
-        const DATA = [
-            {n: "Me", c: "#A5A5A5", tx: "#000", d: 220, s: 4.8}, {n: "Ve", c: "#E3BB76", tx: "#000", d: 350, s: 12.3},
-            {n: "Ea", c: "#2271B3", tx: "#fff", d: 480, s: 20.0}, {n: "Ma", c: "#E27B58", tx: "#000", d: 610, s: 37.6},
-            {belt: true, d: 740},
-            {n: "Ju", c: "#D39C7E", tx: "#000", d: 920, s: 14.1}, {n: "Sa", c: "#C5AB6E", tx: "#000", d: 1150, s: 29.4, rings: "sa"},
-            {n: "Ur", c: "#BBE1E4", tx: "#000", d: 1350, s: 84.0, rings: "ur"}, {n: "Ne", c: "#6081FF", tx: "#fff", d: 1550, s: 101.3}
-        ];
-
-        let audioCtx, selectedFreq, pilots = [], scores = {}, timeLeft = 120;
-
-        function playSfx(f, dur=0.6, type='sine') {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-            const osc = audioCtx.createOscillator(); const g = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(f, audioCtx.currentTime);
-            g.gain.setValueAtTime(0.3, audioCtx.currentTime);
-            g.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + dur);
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + dur);
-        }
-
-        function startEngine() {
-            const intro = document.getElementById('intro-layer');
-            if(intro.classList.contains('fusion-active')) return;
-            intro.classList.add('fusion-active');
+      {/* Menu Overlay */}
+      <AnimatePresence>
+        {gameState === 'menu' && (
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="fixed inset-0 z-40 bg-black/95 flex flex-col items-center justify-center p-6"
+          >
+            <h1 className="text-red-500 text-4xl md:text-6xl tracking-[15px] mb-12 font-black">GAMAFLAK</h1>
             
-            // SFX DE CHOC SYNCHRONISÉ
-            playSfx(40, 1.3, 'sawtooth');
-            setTimeout(() => {
-                document.getElementById('flash-bang').style.animation = "flash 1s forwards";
-                playSfx(80, 2, 'triangle');
-                if (navigator.vibrate) navigator.vibrate(100);
-            }, 1300);
+            <div className="w-full max-w-2xl">
+              {menuStep === 1 && (
+                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                  <p className="text-green-400 mb-6 flex items-center gap-2"><Music size={20} /> 1. TONALITÉ</p>
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    <button 
+                      className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
+                      onClick={() => { setSelectedFreq(261.63); playSfx(261.63); setMenuStep(2); }}
+                    >
+                      DO (C)
+                    </button>
+                    <button 
+                      className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
+                      onClick={() => { setSelectedFreq(392.00); playSfx(392.00); setMenuStep(2); }}
+                    >
+                      SOL (G)
+                    </button>
+                  </div>
+                </motion.div>
+              )}
 
-            setTimeout(() => {
-                intro.style.display = 'none';
-                document.getElementById('overlay').style.display = 'flex';
-            }, 3500);
-        }
+              {menuStep === 2 && (
+                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                  <p className="text-green-400 mb-6 flex items-center gap-2"><Users size={20} /> 2. ESCADRILLE</p>
+                  <div className="flex flex-wrap gap-4 justify-center">
+                    {[1, 2, 4].map(count => (
+                      <button 
+                        key={count}
+                        className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[120px] rounded"
+                        onClick={() => { 
+                          setPilots(Array(count).fill(''));
+                          setMenuStep(3);
+                        }}
+                      >
+                        {count} PILOTE{count > 1 ? 'S' : ''}
+                      </button>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
 
-        function validateStep(cur, next, val) {
-            if(val) selectedFreq = val;
-            playSfx(selectedFreq || 440);
-            document.getElementById(`step-${cur}`).classList.remove('active-step');
-            document.getElementById(`step-${next}`).classList.add('active-step');
-        }
+              {menuStep === 3 && (
+                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                  <p className="text-green-400 mb-6 flex items-center gap-2"><Rocket size={20} /> 3. IDENTIFICATION</p>
+                  <div className="flex flex-wrap gap-4 justify-center mb-8">
+                    {pilots.map((_, i) => (
+                      <input 
+                        key={i}
+                        type="text" 
+                        placeholder={`NOM PILOTE ${i+1}`}
+                        className="bg-white/10 border-2 border-red-500 text-white p-3 text-center outline-none focus:border-green-400 transition-colors rounded"
+                        onChange={(e) => {
+                          const newPilots = [...pilots];
+                          newPilots[i] = e.target.value.toUpperCase();
+                          setPilots(newPilots);
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <button 
+                    className="px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded flex items-center gap-2"
+                    onClick={() => {
+                      if (pilots.some(p => !p.trim())) {
+                        alert("Tous les noms sont requis !");
+                        return;
+                      }
+                      const initialScores: Record<string, number> = {};
+                      pilots.forEach(p => initialScores[p] = 0);
+                      setScores(initialScores);
+                      setGameState('playing');
+                    }}
+                  >
+                    <Play size={20} /> DÉCOLLAGE
+                  </button>
+                </motion.div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-        function preparePilots(count) {
-            const container = document.getElementById('pilot-inputs');
-            container.innerHTML = '';
-            for(let i=1; i<=count; i++) container.innerHTML += `<input type="text" placeholder="NOM PILOTE ${i}" id="p${i}">`;
-            validateStep(2, 3);
-        }
+      {/* HUD */}
+      {gameState === 'playing' && (
+        <>
+          <div className="fixed top-5 left-5 z-30 bg-black/80 p-4 border-l-4 border-red-500 text-red-500 text-3xl font-black flex items-center gap-3">
+            <Timer size={32} /> {formatTime(timeLeft)}
+          </div>
 
-        function launchMission() {
-            const inputs = document.querySelectorAll('#pilot-inputs input');
-            let allFilled = true;
-            pilots = [];
-            inputs.forEach(inp => {
-                if(!inp.value.trim()) allFilled = false;
-                let name = inp.value.toUpperCase();
-                pilots.push(name);
-                scores[name] = 0;
-            });
-            if(!allFilled) { alert("Noms requis !"); pilots=[]; return; }
-            document.getElementById('overlay').style.display = 'none';
-            document.getElementById('score-board').style.display = 'flex';
-            document.getElementById('chrono-hud').style.display = 'block';
-            document.getElementById('system-container').style.display = 'flex';
-            updateUI(); buildUniverse(); startChrono();
-        }
+          <div className="fixed top-5 right-5 z-30 flex flex-col gap-3">
+            {pilots.map(p => (
+              <div 
+                key={p} 
+                className={`bg-black/85 p-3 border-2 rounded-lg min-w-[160px] transition-all ${scores[p] === maxScore && maxScore > 0 ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-green-500'}`}
+              >
+                <div className="text-[10px] flex items-center gap-1 opacity-70">
+                  <Trophy size={10} /> {p}
+                </div>
+                <div className="text-green-400 text-2xl font-black">{scores[p]}</div>
+              </div>
+            ))}
+          </div>
 
-        function updateUI() {
-            const max = Math.max(...Object.values(scores));
-            document.getElementById('score-board').innerHTML = pilots.map(p => `
-                <div class="player-card ${scores[p] === max && max > 0 ? 'leader' : ''}">
-                    <div style="font-size:10px">${p}</div>
-                    <div class="pts-val">${scores[p]}</div>
-                </div>`).join('');
-        }
+          <AnimatePresence>
+            {selectedPlanet && (
+              <motion.div 
+                initial={{ x: 100, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                exit={{ x: 100, opacity: 0 }}
+                className="fixed bottom-5 right-5 z-30 bg-black/85 p-6 border-2 border-green-500 rounded-xl min-w-[250px] shadow-[0_0_20px_rgba(74,222,128,0.2)]"
+              >
+                <div className="text-green-400 text-xs tracking-widest mb-1 opacity-70">PLANÈTE SÉLECTIONNÉE</div>
+                <div className="text-3xl font-black text-white mb-2">{selectedPlanet.fullName}</div>
+                <div className="h-px bg-white/10 mb-3" />
+                <div className="flex justify-between items-end">
+                  <div className="text-[10px] text-white/50 uppercase tracking-tighter">Distance Soleil</div>
+                  <div className="text-xl font-bold text-green-400">
+                    {selectedPlanet.realDistance} <span className="text-[10px] font-normal opacity-70">M KM</span>
+                  </div>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </>
+      )}
 
-        function startChrono() {
-            setInterval(() => {
-                timeLeft--; let m = Math.floor(timeLeft/60), s = timeLeft%60;
-                document.getElementById('chrono-hud').innerText = `${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}`;
-                if(timeLeft <= 0) location.reload();
-            }, 1000);
-        }
+      {/* Game Over */}
+      {gameState === 'gameover' && (
+        <motion.div 
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6"
+        >
+          <h2 className="text-red-500 text-5xl font-black mb-8">MISSION TERMINÉE</h2>
+          <div className="bg-white/5 p-8 rounded-2xl border-2 border-green-500 max-w-md w-full">
+            <h3 className="text-green-400 text-xl mb-6 text-center">RÉSULTATS DE L'ESCADRILLE</h3>
+            {(Object.entries(scores) as [string, number][]).sort((a, b) => b[1] - a[1]).map(([name, score], i) => (
+              <div key={name} className="flex justify-between items-center mb-4 py-2 border-b border-white/10">
+                <span className="flex items-center gap-2">
+                  <span className="text-white/50 w-6">{i + 1}.</span>
+                  {name}
+                </span>
+                <span className="text-green-400 font-bold">{score} PTS</span>
+              </div>
+            ))}
+          </div>
+          <button 
+            className="mt-12 px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded"
+            onClick={() => window.location.reload()}
+          >
+            NOUVELLE MISSION
+          </button>
+        </motion.div>
+      )}
 
-        function buildUniverse() {
-            const container = document.getElementById('system-container'); let pIdx = 0;
-            DATA.forEach((p) => {
-                const orbit = document.createElement('div'); orbit.className = 'orbit';
-                orbit.style.width = orbit.style.height = p.d + 'px'; orbit.style.animationDuration = p.s + 's';
-                if (!p.belt) {
-                    const freq = selectedFreq * MUSIC_RATIOS[pIdx];
-                    const planet = document.createElement('div'); planet.className = 'planet';
-                    planet.style.backgroundColor = p.c; planet.style.color = p.tx; planet.innerText = p.n;
-                    planet.onclick = () => {
-                        // RECTIFICATION SCORE INDIVIDUEL (Pilote 1 pour le test local)
-                        scores[pilots[0]] += 100; 
-                        updateUI(); playSfx(freq); if(navigator.vibrate) navigator.vibrate(50);
-                    };
-                    orbit.appendChild(planet); pIdx++;
-                } else {
-                    for(let j=0; j<80; j++) {
-                        const a = document.createElement('div'); a.className = 'asteroid';
-                        a.style.width = a.style.height = (Math.random()*6+3)+'px';
-                        const ang = Math.random()*Math.PI*2, rad = p.d/2;
-                        a.style.left = (Math.cos(ang)*rad + rad) + 'px'; a.style.top = (Math.sin(ang)*rad + rad) + 'px';
-                        orbit.appendChild(a);
-                    }
-                }
-                container.appendChild(orbit);
-            });
+      {/* Universe Container */}
+      <div 
+        className={`relative w-screen h-screen flex items-center justify-center transition-opacity duration-1000 ${gameState === 'playing' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+        style={{ transform: 'scale(0.47)' }}
+      >
+        <div 
+          className="w-[120px] h-[120px] rounded-full z-20 flex items-center justify-center text-6xl font-black text-black cursor-pointer shadow-[0_0_80px_#ff6600]"
+          style={{ background: 'radial-gradient(circle, #fff, #ffcc00, #ff6600)' }}
+          onClick={() => window.location.reload()}
+        >
+          S
+        </div>
+
+        {DATA.map((p, i) => {
+          if (p.belt) {
+            return (
+              <div 
+                key={`belt-${i}`}
+                className="absolute border border-white/5 rounded-full pointer-events-none animate-[rotate_60s_linear_infinite]"
+                style={{ width: p.d, height: p.d }}
+              >
+                {Array.from({ length: 80 }).map((_, j) => {
+                  const ang = Math.random() * Math.PI * 2;
+                  const rad = (p.d as number) / 2;
+                  return (
+                    <div 
+                      key={j}
+                      className="absolute bg-white rounded-full opacity-90 shadow-[0_0_12px_#fff]"
+                      style={{
+                        width: Math.random() * 6 + 3,
+                        height: Math.random() * 6 + 3,
+                        left: Math.cos(ang) * rad + rad,
+                        top: Math.sin(ang) * rad + rad,
+                      }}
+                    />
+                  );
+                })}
+              </div>
+            );
+          }
+
+          const planetIdx = DATA.filter((d, idx) => idx <= i && !d.belt).length - 1;
+          const freq = selectedFreq * MUSIC_RATIOS[planetIdx];
+
+          return (
+            <div 
+              key={p.n}
+              className="absolute border border-white/10 rounded-full pointer-events-none animate-[rotate_linear_infinite]"
+              style={{ 
+                width: p.d, 
+                height: p.d,
+                animationDuration: `${p.s}s`
+              }}
+            >
+              <div 
+                className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-16 h-16 pointer-events-auto flex items-center justify-center text-xl font-black cursor-pointer shadow-[inset_-10px_-10px_20px_rgba(0,0,0,0.6)]"
+                style={{ backgroundColor: p.c, color: p.tx }}
+                onClick={() => handlePlanetClick(p, freq)}
+              >
+                {p.n}
+                {p.rings === 'sa' && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] rounded-full border-[6px] border-yellow-700/40 rotate-x-[75deg] pointer-events-none" />
+                )}
+                {p.rings === 'ur' && (
+                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full border-[6px] border-blue-200/30 rotate-y-[85deg] pointer-events-none" />
+                )}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      <style>{`
+        @keyframes rotate {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
         }
-    </script>
-</body>
-</html>
+        .rotate-x-[75deg] { transform: translate(-50%, -50%) rotateX(75deg); }
+        .rotate-y-[85deg] { transform: translate(-50%, -50%) rotateY(85deg); }
+      `}</style>
+    </div>
+  );
+}
