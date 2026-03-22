@@ -1,420 +1,432 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
-
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
-import { Rocket, Timer, Trophy, Music, Users, Play } from 'lucide-react';
-
-// Constants from original code
-const MUSIC_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
-interface PlanetData {
-  n?: string;
-  fullName?: string;
-  realDistance?: number;
-  c?: string;
-  tx?: string;
-  d: number;
-  s?: number;
-  belt?: boolean;
-  rings?: string;
-}
-
-const DATA: PlanetData[] = [
-  { n: "Me", fullName: "MERCURE", realDistance: 57.9, c: "#A5A5A5", tx: "#000", d: 220, s: 4.8 },
-  { n: "Ve", fullName: "VÉNUS", realDistance: 108.2, c: "#E3BB76", tx: "#000", d: 350, s: 12.3 },
-  { n: "Ea", fullName: "TERRE", realDistance: 149.6, c: "#2271B3", tx: "#fff", d: 480, s: 20.0 },
-  { n: "Ma", fullName: "MARS", realDistance: 227.9, c: "#E27B58", tx: "#000", d: 610, s: 37.6 },
-  { belt: true, d: 740 },
-  { n: "Ju", fullName: "JUPITER", realDistance: 778.5, c: "#D39C7E", tx: "#000", d: 920, s: 14.1 },
-  { n: "Sa", fullName: "SATURNE", realDistance: 1434, c: "#C5AB6E", tx: "#000", d: 1150, s: 29.4, rings: "sa" },
-  { n: "Ur", fullName: "URANUS", realDistance: 2871, c: "#BBE1E4", tx: "#000", d: 1350, s: 84.0, rings: "ur" },
-  { n: "Ne", fullName: "NEPTUNE", realDistance: 4495, c: "#6081FF", tx: "#fff", d: 1550, s: 101.3 }
-];
-
-type GameState = 'intro' | 'menu' | 'playing' | 'gameover';
-
-export default function App() {
-  const [gameState, setGameState] = useState<GameState>('intro');
-  const [menuStep, setMenuStep] = useState(1);
-  const [selectedFreq, setSelectedFreq] = useState(261.63);
-  const [pilots, setPilots] = useState<string[]>([]);
-  const [scores, setScores] = useState<Record<string, number>>({});
-  const [timeLeft, setTimeLeft] = useState(120);
-  const [fusionActive, setFusionActive] = useState(false);
-  const [selectedPlanet, setSelectedPlanet] = useState<PlanetData | null>(null);
-  
-  const audioCtxRef = useRef<AudioContext | null>(null);
-
-  // Audio utility
-  const playSfx = useCallback((f: number, dur = 0.6, type: OscillatorType = 'sine') => {
-    if (!audioCtxRef.current) {
-      audioCtxRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-    }
-    const ctx = audioCtxRef.current;
-    if (ctx.state === 'suspended') ctx.resume();
-    
-    const osc = ctx.createOscillator();
-    const g = ctx.createGain();
-    osc.type = type;
-    osc.frequency.setValueAtTime(f, ctx.currentTime);
-    g.gain.setValueAtTime(0.3, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-    osc.connect(g);
-    g.connect(ctx.destination);
-    osc.start();
-    osc.stop(ctx.currentTime + dur);
-  }, []);
-
-  // Timer logic
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (gameState === 'playing' && timeLeft > 0) {
-      timer = setInterval(() => {
-        setTimeLeft((prev) => prev - 1);
-      }, 1000);
-    } else if (timeLeft === 0) {
-      setGameState('gameover');
-    }
-    return () => clearInterval(timer);
-  }, [gameState, timeLeft]);
-
-  const startEngine = () => {
-    if (fusionActive) return;
-    setFusionActive(true);
-    playSfx(40, 1.3, 'sawtooth');
-    
-    setTimeout(() => {
-      playSfx(80, 2, 'triangle');
-      if (navigator.vibrate) navigator.vibrate(100);
-    }, 1300);
-
-    setTimeout(() => {
-      setGameState('menu');
-    }, 3500);
-  };
-
-  const handlePlanetClick = (planet: PlanetData, freq: number) => {
-    setSelectedPlanet(planet);
-    // In this version, we cycle through pilots for scoring or just score the first one for simplicity
-    const currentPilot = pilots[0];
-    if (currentPilot) {
-      setScores(prev => ({
-        ...prev,
-        [currentPilot]: (prev[currentPilot] || 0) + 100
-      }));
-    }
-    playSfx(freq);
-    if (navigator.vibrate) navigator.vibrate(50);
-  };
-
-  const formatTime = (seconds: number) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
-
-  const maxScore = pilots.length > 0 ? Math.max(...(Object.values(scores) as number[])) : 0;
-
-  return (
-    <div className="min-h-screen bg-black text-white font-['Orbitron'] overflow-hidden flex items-center justify-center select-none touch-none">
-      
-      {/* Intro Layer */}
-      <AnimatePresence>
-        {gameState === 'intro' && (
-          <motion.div 
-            initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer bg-[#111]"
-            onClick={startEngine}
-            style={{
-              backgroundImage: 'url(https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=1920)',
-              backgroundSize: 'cover',
-              backgroundPosition: 'center'
-            }}
-          >
-            <div className="relative flex items-center justify-center text-[8vw] font-black">
-              <motion.div
-                animate={fusionActive ? { x: '-43%', rotateY: 0, opacity: 1 } : { x: '-150%', rotateY: 30, opacity: 0 }}
-                transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
-                className="text-red-500"
-              >
-                GAM<motion.span animate={fusionActive ? { width: 0, opacity: 0, scale: 0 } : { width: '0.8em', opacity: 1, scale: 1 }} className="inline-block">E</motion.span>
-              </motion.div>
-              <motion.div
-                animate={fusionActive ? { x: '45%', rotateY: 0, opacity: 1 } : { x: '150%', rotateY: -30, opacity: 0 }}
-                transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
-                className="text-green-500"
-              >
-                AFLAK
-              </motion.div>
-            </div>
-            {!fusionActive && (
-              <motion.div 
-                animate={{ opacity: [1, 0.3, 1] }}
-                transition={{ duration: 1.5, repeat: Infinity }}
-                className="absolute bottom-[10%] text-green-400 tracking-[3px] text-sm bg-black/60 px-4 py-2 rounded"
-              >
-                CLIQUEZ POUR DÉMARRER
-              </motion.div>
-            )}
-            {fusionActive && (
-              <motion.div 
-                initial={{ opacity: 0 }}
-                animate={{ opacity: [0, 1, 0] }}
-                transition={{ delay: 1.3, duration: 1 }}
-                className="fixed inset-0 bg-white z-[60] pointer-events-none"
-              />
-            )}
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Menu Overlay */}
-      <AnimatePresence>
-        {gameState === 'menu' && (
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="fixed inset-0 z-40 bg-black/95 flex flex-col items-center justify-center p-6"
-          >
-            <h1 className="text-red-500 text-4xl md:text-6xl tracking-[15px] mb-12 font-black">GAMAFLAK</h1>
-            
-            <div className="w-full max-w-2xl">
-              {menuStep === 1 && (
-                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
-                  <p className="text-green-400 mb-6 flex items-center gap-2"><Music size={20} /> 1. TONALITÉ</p>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    <button 
-                      className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
-                      onClick={() => { setSelectedFreq(261.63); playSfx(261.63); setMenuStep(2); }}
-                    >
-                      DO (C)
-                    </button>
-                    <button 
-                      className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
-                      onClick={() => { setSelectedFreq(392.00); playSfx(392.00); setMenuStep(2); }}
-                    >
-                      SOL (G)
-                    </button>
-                  </div>
-                </motion.div>
-              )}
-
-              {menuStep === 2 && (
-                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
-                  <p className="text-green-400 mb-6 flex items-center gap-2"><Users size={20} /> 2. ESCADRILLE</p>
-                  <div className="flex flex-wrap gap-4 justify-center">
-                    {[1, 2, 4].map(count => (
-                      <button 
-                        key={count}
-                        className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[120px] rounded"
-                        onClick={() => { 
-                          setPilots(Array(count).fill(''));
-                          setMenuStep(3);
-                        }}
-                      >
-                        {count} PILOTE{count > 1 ? 'S' : ''}
-                      </button>
-                    ))}
-                  </div>
-                </motion.div>
-              )}
-
-              {menuStep === 3 && (
-                <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
-                  <p className="text-green-400 mb-6 flex items-center gap-2"><Rocket size={20} /> 3. IDENTIFICATION</p>
-                  <div className="flex flex-wrap gap-4 justify-center mb-8">
-                    {pilots.map((_, i) => (
-                      <input 
-                        key={i}
-                        type="text" 
-                        placeholder={`NOM PILOTE ${i+1}`}
-                        className="bg-white/10 border-2 border-red-500 text-white p-3 text-center outline-none focus:border-green-400 transition-colors rounded"
-                        onChange={(e) => {
-                          const newPilots = [...pilots];
-                          newPilots[i] = e.target.value.toUpperCase();
-                          setPilots(newPilots);
-                        }}
-                      />
-                    ))}
-                  </div>
-                  <button 
-                    className="px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded flex items-center gap-2"
-                    onClick={() => {
-                      if (pilots.some(p => !p.trim())) {
-                        alert("Tous les noms sont requis !");
-                        return;
-                      }
-                      const initialScores: Record<string, number> = {};
-                      pilots.forEach(p => initialScores[p] = 0);
-                      setScores(initialScores);
-                      setGameState('playing');
-                    }}
-                  >
-                    <Play size={20} /> DÉCOLLAGE
-                  </button>
-                </motion.div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* HUD */}
-      {gameState === 'playing' && (
-        <>
-          <div className="fixed top-5 left-5 z-30 bg-black/80 p-4 border-l-4 border-red-500 text-red-500 text-3xl font-black flex items-center gap-3">
-            <Timer size={32} /> {formatTime(timeLeft)}
-          </div>
-
-          <div className="fixed top-5 right-5 z-30 flex flex-col gap-3">
-            {pilots.map(p => (
-              <div 
-                key={p} 
-                className={`bg-black/85 p-3 border-2 rounded-lg min-w-[160px] transition-all ${scores[p] === maxScore && maxScore > 0 ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-green-500'}`}
-              >
-                <div className="text-[10px] flex items-center gap-1 opacity-70">
-                  <Trophy size={10} /> {p}
-                </div>
-                <div className="text-green-400 text-2xl font-black">{scores[p]}</div>
-              </div>
-            ))}
-          </div>
-
-          <AnimatePresence>
-            {selectedPlanet && (
-              <motion.div 
-                initial={{ x: 100, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                exit={{ x: 100, opacity: 0 }}
-                className="fixed bottom-5 right-5 z-30 bg-black/85 p-6 border-2 border-green-500 rounded-xl min-w-[250px] shadow-[0_0_20px_rgba(74,222,128,0.2)]"
-              >
-                <div className="text-green-400 text-xs tracking-widest mb-1 opacity-70">PLANÈTE SÉLECTIONNÉE</div>
-                <div className="text-3xl font-black text-white mb-2">{selectedPlanet.fullName}</div>
-                <div className="h-px bg-white/10 mb-3" />
-                <div className="flex justify-between items-end">
-                  <div className="text-[10px] text-white/50 uppercase tracking-tighter">Distance Soleil</div>
-                  <div className="text-xl font-bold text-green-400">
-                    {selectedPlanet.realDistance} <span className="text-[10px] font-normal opacity-70">M KM</span>
-                  </div>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
-      )}
-
-      {/* Game Over */}
-      {gameState === 'gameover' && (
-        <motion.div 
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6"
-        >
-          <h2 className="text-red-500 text-5xl font-black mb-8">MISSION TERMINÉE</h2>
-          <div className="bg-white/5 p-8 rounded-2xl border-2 border-green-500 max-w-md w-full">
-            <h3 className="text-green-400 text-xl mb-6 text-center">RÉSULTATS DE L'ESCADRILLE</h3>
-            {(Object.entries(scores) as [string, number][]).sort((a, b) => b[1] - a[1]).map(([name, score], i) => (
-              <div key={name} className="flex justify-between items-center mb-4 py-2 border-b border-white/10">
-                <span className="flex items-center gap-2">
-                  <span className="text-white/50 w-6">{i + 1}.</span>
-                  {name}
-                </span>
-                <span className="text-green-400 font-bold">{score} PTS</span>
-              </div>
-            ))}
-          </div>
-          <button 
-            className="mt-12 px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded"
-            onClick={() => window.location.reload()}
-          >
-            NOUVELLE MISSION
-          </button>
-        </motion.div>
-      )}
-
-      {/* Universe Container */}
-      <div 
-        className={`relative w-screen h-screen flex items-center justify-center transition-opacity duration-1000 ${gameState === 'playing' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        style={{ transform: 'scale(0.47)' }}
-      >
-        <div 
-          className="w-[120px] h-[120px] rounded-full z-20 flex items-center justify-center text-6xl font-black text-black cursor-pointer shadow-[0_0_80px_#ff6600]"
-          style={{ background: 'radial-gradient(circle, #fff, #ffcc00, #ff6600)' }}
-          onClick={() => window.location.reload()}
-        >
-          S
-        </div>
-
-        {DATA.map((p, i) => {
-          if (p.belt) {
-            return (
-              <div 
-                key={`belt-${i}`}
-                className="absolute border border-white/5 rounded-full pointer-events-none animate-[rotate_60s_linear_infinite]"
-                style={{ width: p.d, height: p.d }}
-              >
-                {Array.from({ length: 80 }).map((_, j) => {
-                  const ang = Math.random() * Math.PI * 2;
-                  const rad = (p.d as number) / 2;
-                  return (
-                    <div 
-                      key={j}
-                      className="absolute bg-white rounded-full opacity-90 shadow-[0_0_12px_#fff]"
-                      style={{
-                        width: Math.random() * 6 + 3,
-                        height: Math.random() * 6 + 3,
-                        left: Math.cos(ang) * rad + rad,
-                        top: Math.sin(ang) * rad + rad,
-                      }}
-                    />
-                  );
-                })}
-              </div>
-            );
-          }
-
-          const planetIdx = DATA.filter((d, idx) => idx <= i && !d.belt).length - 1;
-          const freq = selectedFreq * MUSIC_RATIOS[planetIdx];
-
-          return (
-            <div 
-              key={p.n}
-              className="absolute border border-white/10 rounded-full pointer-events-none animate-[rotate_linear_infinite]"
-              style={{ 
-                width: p.d, 
-                height: p.d,
-                animationDuration: `${p.s}s`
-              }}
-            >
-              <div 
-                className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-16 h-16 pointer-events-auto flex items-center justify-center text-xl font-black cursor-pointer shadow-[inset_-10px_-10px_20px_rgba(0,0,0,0.6)]"
-                style={{ backgroundColor: p.c, color: p.tx }}
-                onClick={() => handlePlanetClick(p, freq)}
-              >
-                {p.n}
-                {p.rings === 'sa' && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] rounded-full border-[6px] border-yellow-700/40 rotate-x-[75deg] pointer-events-none" />
-                )}
-                {p.rings === 'ur' && (
-                  <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full border-[6px] border-blue-200/30 rotate-y-[85deg] pointer-events-none" />
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      <style>{`
-        @keyframes rotate {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAMAFLAK - Space Mission</title>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&display=swap" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React & ReactDOM -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <!-- Babel for JSX -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Framer Motion -->
+    <script src="https://unpkg.com/framer-motion@10.16.4/dist/framer-motion.js"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        body {
+            margin: 0;
+            background-color: black;
+            color: white;
+            font-family: 'Orbitron', sans-serif;
+            overflow: hidden;
+            user-select: none;
         }
-        .rotate-x-[75deg] { transform: translate(-50%, -50%) rotateX(75deg); }
-        .rotate-y-[85deg] { transform: translate(-50%, -50%) rotateY(85deg); }
-      `}</style>
-    </div>
-  );
-}
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        .animate-rotate {
+            animation: rotate linear infinite;
+        }
+        .rotate-x-75 { transform: translate(-50%, -50%) rotateX(75deg); }
+        .rotate-y-85 { transform: translate(-50%, -50%) rotateY(85deg); }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef, useCallback } = React;
+        const { motion, AnimatePresence } = FramerMotion;
+
+        // Constants
+        const MUSIC_RATIOS = [1, 1.125, 1.25, 1.33, 1.5, 1.66, 1.87, 2];
+        const DATA = [
+            { n: "Me", fullName: "MERCURY", realDistance: 57.9, c: "#A5A5A5", tx: "#000", d: 220, s: 4.8 },
+            { n: "Ve", fullName: "VENUS", realDistance: 108.2, c: "#E3BB76", tx: "#000", d: 350, s: 12.3 },
+            { n: "Ea", fullName: "EARTH", realDistance: 149.6, c: "#2271B3", tx: "#fff", d: 480, s: 20.0 },
+            { n: "Ma", fullName: "MARS", realDistance: 227.9, c: "#E27B58", tx: "#000", d: 610, s: 37.6 },
+            { belt: true, d: 740 },
+            { n: "Ju", fullName: "JUPITER", realDistance: 778.5, c: "#D39C7E", tx: "#000", d: 920, s: 14.1 },
+            { n: "Sa", fullName: "SATURN", realDistance: 1434, c: "#C5AB6E", tx: "#000", d: 1150, s: 29.4, rings: "sa" },
+            { n: "Ur", fullName: "URANUS", realDistance: 2871, c: "#BBE1E4", tx: "#000", d: 1350, s: 84.0, rings: "ur" },
+            { n: "Ne", fullName: "NEPTUNE", realDistance: 4495, c: "#6081FF", tx: "#fff", d: 1550, s: 101.3 }
+        ];
+
+        function App() {
+            const [gameState, setGameState] = useState('intro');
+            const [menuStep, setMenuStep] = useState(1);
+            const [selectedFreq, setSelectedFreq] = useState(261.63);
+            const [pilots, setPilots] = useState([]);
+            const [scores, setScores] = useState({});
+            const [timeLeft, setTimeLeft] = useState(120);
+            const [fusionActive, setFusionActive] = useState(false);
+            const [selectedPlanet, setSelectedPlanet] = useState(null);
+            
+            const audioCtxRef = useRef(null);
+
+            const playSfx = useCallback((f, dur = 0.6, type = 'sine') => {
+                if (!audioCtxRef.current) {
+                    audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                const ctx = audioCtxRef.current;
+                if (ctx.state === 'suspended') ctx.resume();
+                
+                const osc = ctx.createOscillator();
+                const g = ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(f, ctx.currentTime);
+                g.gain.setValueAtTime(0.3, ctx.currentTime);
+                g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+                osc.connect(g);
+                g.connect(ctx.destination);
+                osc.start();
+                osc.stop(ctx.currentTime + dur);
+            }, []);
+
+            useEffect(() => {
+                let timer;
+                if (gameState === 'playing' && timeLeft > 0) {
+                    timer = setInterval(() => {
+                        setTimeLeft((prev) => prev - 1);
+                    }, 1000);
+                } else if (timeLeft === 0) {
+                    setGameState('gameover');
+                }
+                return () => clearInterval(timer);
+            }, [gameState, timeLeft]);
+
+            const startEngine = () => {
+                if (fusionActive) return;
+                setFusionActive(true);
+                playSfx(40, 1.3, 'sawtooth');
+                
+                setTimeout(() => {
+                    playSfx(80, 2, 'triangle');
+                    if (navigator.vibrate) navigator.vibrate(100);
+                }, 1300);
+
+                setTimeout(() => {
+                    setGameState('menu');
+                }, 3500);
+            };
+
+            const handlePlanetClick = (planet, freq) => {
+                setSelectedPlanet(planet);
+                const currentPilot = pilots[0];
+                if (currentPilot) {
+                    setScores(prev => ({
+                        ...prev,
+                        [currentPilot]: (prev[currentPilot] || 0) + 100
+                    }));
+                }
+                playSfx(freq);
+                if (navigator.vibrate) navigator.vibrate(50);
+            };
+
+            const formatTime = (seconds) => {
+                const m = Math.floor(seconds / 60);
+                const s = seconds % 60;
+                return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+            };
+
+            const maxScore = pilots.length > 0 ? Math.max(...Object.values(scores)) : 0;
+
+            return (
+                <div className="min-h-screen bg-black text-white overflow-hidden flex items-center justify-center select-none touch-none">
+                    
+                    <AnimatePresence>
+                        {gameState === 'intro' && (
+                            <motion.div 
+                                initial={{ opacity: 1 }}
+                                exit={{ opacity: 0 }}
+                                className="fixed inset-0 z-50 flex items-center justify-center cursor-pointer bg-[#111]"
+                                onClick={startEngine}
+                                style={{
+                                    backgroundImage: 'url(https://images.unsplash.com/photo-1513519245088-0e12902e5a38?auto=format&fit=crop&q=80&w=1920)',
+                                    backgroundSize: 'cover',
+                                    backgroundPosition: 'center'
+                                }}
+                            >
+                                <div className="relative flex items-center justify-center text-[8vw] font-black">
+                                    <motion.div
+                                        animate={fusionActive ? { x: '-43%', rotateY: 0, opacity: 1 } : { x: '-150%', rotateY: 30, opacity: 0 }}
+                                        transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
+                                        className="text-red-500"
+                                    >
+                                        GAM<motion.span animate={fusionActive ? { width: 0, opacity: 0, scale: 0 } : { width: '0.8em', opacity: 1, scale: 1 }} className="inline-block">E</motion.span>
+                                    </motion.div>
+                                    <motion.div
+                                        animate={fusionActive ? { x: '45%', rotateY: 0, opacity: 1 } : { x: '150%', rotateY: -30, opacity: 0 }}
+                                        transition={{ duration: 1.6, ease: [0.19, 1, 0.22, 1] }}
+                                        className="text-green-500"
+                                    >
+                                        AFLAK
+                                    </motion.div>
+                                </div>
+                                {!fusionActive && (
+                                    <motion.div 
+                                        animate={{ opacity: [1, 0.3, 1] }}
+                                        transition={{ duration: 1.5, repeat: Infinity }}
+                                        className="absolute bottom-[10%] text-green-400 tracking-[3px] text-sm bg-black/60 px-4 py-2 rounded"
+                                    >
+                                        CLICK TO START
+                                    </motion.div>
+                                )}
+                                {fusionActive && (
+                                    <motion.div 
+                                        initial={{ opacity: 0 }}
+                                        animate={{ opacity: [0, 1, 0] }}
+                                        transition={{ delay: 1.3, duration: 1 }}
+                                        className="fixed inset-0 bg-white z-[60] pointer-events-none"
+                                    />
+                                )}
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    <AnimatePresence>
+                        {gameState === 'menu' && (
+                            <motion.div 
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="fixed inset-0 z-40 bg-black/95 flex flex-col items-center justify-center p-6"
+                            >
+                                <h1 className="text-red-500 text-4xl md:text-6xl tracking-[15px] mb-12 font-black text-center">GAMAFLAK</h1>
+                                
+                                <div className="w-full max-w-2xl">
+                                    {menuStep === 1 && (
+                                        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                                            <p className="text-green-400 mb-6 flex items-center gap-2">1. TONE</p>
+                                            <div className="flex flex-wrap gap-4 justify-center">
+                                                <button 
+                                                    className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
+                                                    onClick={() => { setSelectedFreq(261.63); playSfx(261.63); setMenuStep(2); }}
+                                                >
+                                                    DO (C)
+                                                </button>
+                                                <button 
+                                                    className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[180px] rounded"
+                                                    onClick={() => { setSelectedFreq(392.00); playSfx(392.00); setMenuStep(2); }}
+                                                >
+                                                    SOL (G)
+                                                </button>
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {menuStep === 2 && (
+                                        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                                            <p className="text-green-400 mb-6 flex items-center gap-2">2. SQUADRON</p>
+                                            <div className="flex flex-wrap gap-4 justify-center">
+                                                {[1, 2, 4].map(count => (
+                                                    <button 
+                                                        key={count}
+                                                        className="px-8 py-3 border-2 border-green-500 text-green-500 hover:bg-green-500 hover:text-black transition-all font-bold min-w-[120px] rounded"
+                                                        onClick={() => { 
+                                                            setPilots(Array(count).fill(''));
+                                                            setMenuStep(3);
+                                                        }}
+                                                    >
+                                                        {count} PILOT{count > 1 ? 'S' : ''}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {menuStep === 3 && (
+                                        <motion.div initial={{ x: 20, opacity: 0 }} animate={{ x: 0, opacity: 1 }} className="flex flex-col items-center">
+                                            <p className="text-green-400 mb-6 flex items-center gap-2">3. IDENTIFICATION</p>
+                                            <div className="flex flex-wrap gap-4 justify-center mb-8">
+                                                {pilots.map((_, i) => (
+                                                    <input 
+                                                        key={i}
+                                                        type="text" 
+                                                        placeholder={`PILOT NAME ${i+1}`}
+                                                        className="bg-white/10 border-2 border-red-500 text-white p-3 text-center outline-none focus:border-green-400 transition-colors rounded"
+                                                        onChange={(e) => {
+                                                            const newPilots = [...pilots];
+                                                            newPilots[i] = e.target.value.toUpperCase();
+                                                            setPilots(newPilots);
+                                                        }}
+                                                    />
+                                                ))}
+                                            </div>
+                                            <button 
+                                                className="px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded flex items-center gap-2"
+                                                onClick={() => {
+                                                    if (pilots.some(p => !p.trim())) {
+                                                        alert("All names are required!");
+                                                        return;
+                                                    }
+                                                    const initialScores = {};
+                                                    pilots.forEach(p => initialScores[p] = 0);
+                                                    setScores(initialScores);
+                                                    setGameState('playing');
+                                                }}
+                                            >
+                                                TAKE OFF
+                                            </button>
+                                        </motion.div>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+                    </AnimatePresence>
+
+                    {gameState === 'playing' && (
+                        <React.Fragment>
+                            <div className="fixed top-5 left-5 z-30 bg-black/80 p-4 border-l-4 border-red-500 text-red-500 text-3xl font-black flex items-center gap-3">
+                                {formatTime(timeLeft)}
+                            </div>
+
+                            <div className="fixed top-5 right-5 z-30 flex flex-col gap-3">
+                                {pilots.map(p => (
+                                    <div 
+                                        key={p} 
+                                        className={`bg-black/85 p-3 border-2 rounded-lg min-w-[160px] transition-all ${scores[p] === maxScore && maxScore > 0 ? 'border-yellow-500 shadow-[0_0_15px_rgba(234,179,8,0.5)]' : 'border-green-500'}`}
+                                    >
+                                        <div className="text-[10px] flex items-center gap-1 opacity-70 uppercase tracking-tighter">
+                                            {p}
+                                        </div>
+                                        <div className="text-green-400 text-2xl font-black">{scores[p]}</div>
+                                    </div>
+                                ))}
+                            </div>
+
+                            <AnimatePresence>
+                                {selectedPlanet && (
+                                    <motion.div 
+                                        initial={{ x: 100, opacity: 0 }}
+                                        animate={{ x: 0, opacity: 1 }}
+                                        exit={{ x: 100, opacity: 0 }}
+                                        className="fixed bottom-5 right-5 z-30 bg-black/85 p-6 border-2 border-green-500 rounded-xl min-w-[250px] shadow-[0_0_20px_rgba(74,222,128,0.2)]"
+                                    >
+                                        <div className="text-green-400 text-xs tracking-widest mb-1 opacity-70">SELECTED PLANET</div>
+                                        <div className="text-3xl font-black text-white mb-2">{selectedPlanet.fullName}</div>
+                                        <div className="h-px bg-white/10 mb-3" />
+                                        <div className="flex justify-between items-end">
+                                            <div className="text-[10px] text-white/50 uppercase tracking-tighter">Distance from Sun</div>
+                                            <div className="text-xl font-bold text-green-400">
+                                                {selectedPlanet.realDistance} <span className="text-[10px] font-normal opacity-70">M KM</span>
+                                            </div>
+                                        </div>
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
+                        </React.Fragment>
+                    )}
+
+                    {gameState === 'gameover' && (
+                        <motion.div 
+                            initial={{ scale: 0.8, opacity: 0 }}
+                            animate={{ scale: 1, opacity: 1 }}
+                            className="fixed inset-0 z-[100] bg-black/90 flex flex-col items-center justify-center p-6"
+                        >
+                            <h2 className="text-red-500 text-5xl font-black mb-8">MISSION COMPLETE</h2>
+                            <div className="bg-white/5 p-8 rounded-2xl border-2 border-green-500 max-w-md w-full">
+                                <h3 className="text-green-400 text-xl mb-6 text-center">SQUADRON RESULTS</h3>
+                                {Object.entries(scores).sort((a, b) => b[1] - a[1]).map(([name, score], i) => (
+                                    <div key={name} className="flex justify-between items-center mb-4 py-2 border-b border-white/10">
+                                        <span className="flex items-center gap-2">
+                                            <span className="text-white/50 w-6">{i + 1}.</span>
+                                            {name}
+                                        </span>
+                                        <span className="text-green-400 font-bold">{score} PTS</span>
+                                    </div>
+                                ))}
+                            </div>
+                            <button 
+                                className="mt-12 px-12 py-4 border-2 border-white text-white hover:bg-white hover:text-black transition-all font-bold rounded"
+                                onClick={() => window.location.reload()}
+                            >
+                                NEW MISSION
+                            </button>
+                        </motion.div>
+                    )}
+
+                    <div 
+                        className={`relative w-screen h-screen flex items-center justify-center transition-opacity duration-1000 ${gameState === 'playing' ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+                        style={{ transform: 'scale(0.47)' }}
+                    >
+                        <div 
+                            className="w-[120px] h-[120px] rounded-full z-20 flex items-center justify-center text-6xl font-black text-black cursor-pointer shadow-[0_0_80px_#ff6600]"
+                            style={{ background: 'radial-gradient(circle, #fff, #ffcc00, #ff6600)' }}
+                            onClick={() => window.location.reload()}
+                        >
+                            S
+                        </div>
+
+                        {DATA.map((p, i) => {
+                            if (p.belt) {
+                                return (
+                                    <div 
+                                        key={`belt-${i}`}
+                                        className="absolute border border-white/5 rounded-full pointer-events-none animate-rotate"
+                                        style={{ width: p.d, height: p.d, animationDuration: '60s' }}
+                                    >
+                                        {Array.from({ length: 80 }).map((_, j) => {
+                                            const ang = Math.random() * Math.PI * 2;
+                                            const rad = p.d / 2;
+                                            return (
+                                                <div 
+                                                    key={j}
+                                                    className="absolute bg-white rounded-full opacity-90 shadow-[0_0_12px_#fff]"
+                                                    style={{
+                                                        width: Math.random() * 6 + 3,
+                                                        height: Math.random() * 6 + 3,
+                                                        left: Math.cos(ang) * rad + rad,
+                                                        top: Math.sin(ang) * rad + rad,
+                                                    }}
+                                                />
+                                            );
+                                        })}
+                                    </div>
+                                );
+                            }
+
+                            const planetIdx = DATA.filter((d, idx) => idx <= i && !d.belt).length - 1;
+                            const freq = selectedFreq * MUSIC_RATIOS[planetIdx];
+
+                            return (
+                                <div 
+                                    key={p.n}
+                                    className="absolute border border-white/10 rounded-full pointer-events-none animate-rotate"
+                                    style={{ 
+                                        width: p.d, 
+                                        height: p.d,
+                                        animationDuration: `${p.s}s`
+                                    }}
+                                >
+                                    <div 
+                                        className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full w-16 h-16 pointer-events-auto flex items-center justify-center text-xl font-black cursor-pointer shadow-[inset_-10px_-10px_20px_rgba(0,0,0,0.6)]"
+                                        style={{ backgroundColor: p.c, color: p.tx }}
+                                        onClick={() => handlePlanetClick(p, freq)}
+                                    >
+                                        {p.n}
+                                        {p.rings === 'sa' && (
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[140px] h-[140px] rounded-full border-[6px] border-yellow-700/40 rotate-x-75 pointer-events-none" />
+                                        )}
+                                        {p.rings === 'ur' && (
+                                            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120px] h-[120px] rounded-full border-[6px] border-blue-200/30 rotate-y-85 pointer-events-none" />
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
