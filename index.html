@@ -3,55 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GAMAFLAK OFFICIAL</title>
+    <title>GAMAFLAK PRO</title>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
         :root { --accent: #00ffcc; --scale: 0.2; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: white; font-family: 'Orbitron', sans-serif; overflow: hidden; touch-action: none; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: white; font-family: 'Orbitron', sans-serif; overflow: hidden; }
         
-        /* 1. COUVERTURE */
-        #cover-layer { position: fixed; inset: 0; z-index: 9000; display: flex; align-items: center; justify-content: center; }
-        #cover-layer img { width: 100%; height: 100%; object-fit: cover; position: absolute; }
-        .btn-main { position: relative; z-index: 9001; padding: 20px 40px; background: rgba(0,0,0,0.8); border: 3px solid var(--accent); color: white; font-size: 1.2rem; font-weight: 900; cursor: pointer; border-radius: 10px; }
+        /* 1. COUVERTURE (FORCÉE) */
+        #cover-layer { 
+            position: fixed; inset: 0; z-index: 9999; 
+            background: url('ardeco_cover_02.jpg') no-repeat center center; 
+            background-size: cover; display: flex; align-items: center; justify-content: center;
+        }
+        .btn-main { 
+            padding: 25px 50px; background: rgba(0,0,0,0.85); border: 4px solid var(--accent); 
+            color: white; font-size: 1.5rem; font-weight: 900; cursor: pointer; border-radius: 15px;
+            box-shadow: 0 0 20px var(--accent);
+        }
 
-        /* 2. FUSION */
-        #intro-layer { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 8000; }
-        .word-box { display: flex; font-size: 5rem; font-weight: 900; }
-        #word-left { color: #ff3e3e; transform: translateX(-120vw); transition: transform 0.6s cubic-bezier(0.17, 0.84, 0.44, 1); }
-        #word-right { color: var(--accent); transform: translateX(120vw); transition: transform 0.6s cubic-bezier(0.17, 0.84, 0.44, 1); }
-        .letter-e { display: inline-block; transition: all 0.2s; width: 1em; }
+        /* 2. FUSION GAMAFLAK */
+        #intro-layer { 
+            position: fixed; inset: 0; background: #000; z-index: 8000;
+            display: none; align-items: center; justify-content: center; 
+        }
+        .word-box { display: flex; font-size: 5rem; font-weight: 900; letter-spacing: -2px; }
+        #word-left { color: #ff3e3e; transform: translateX(-120vw); transition: transform 0.6s ease-out; }
+        #word-right { color: var(--accent); transform: translateX(120vw); transition: transform 0.6s ease-out; }
+        .letter-e { display: inline-block; transition: all 0.2s; width: 1em; overflow: hidden; }
         
-        .fusion-active #word-left { transform: translateX(23px); }
-        .fusion-active #word-right { transform: translateX(-23px); }
+        /* Ajustement précis pour que GAME + AFLAK devienne GAMAFLAK sans espace */
+        .fusion-active #word-left { transform: translateX(42px); } 
+        .fusion-active #word-right { transform: translateX(-42px); }
         .fusion-active .letter-e { width: 0; opacity: 0; transform: scaleX(0); margin: 0; }
 
-        /* 3. MENUS DE CHOIX (SÉPARÉS) */
-        .menu-screen { position: fixed; inset: 0; background: #000; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 7000; text-align: center; }
-        .menu-screen h2 { color: var(--accent); margin-bottom: 30px; letter-spacing: 5px; }
-        .btn-opt { margin: 10px; padding: 15px 30px; border: 1px solid var(--accent); background: none; color: white; cursor: pointer; font-family: 'Orbitron'; font-size: 1.1rem; width: 250px; border-radius: 5px; }
-        .btn-opt:hover { background: rgba(0,255,204,0.1); }
+        /* 3. MENUS SÉPARÉS */
+        .menu-screen { 
+            position: fixed; inset: 0; background: #000; z-index: 7000;
+            display: none; flex-direction: column; align-items: center; justify-content: center; 
+        }
+        .btn-opt { 
+            margin: 15px; padding: 20px; border: 2px solid var(--accent); background: none; 
+            color: white; font-family: 'Orbitron'; font-size: 1.2rem; width: 280px; cursor: pointer;
+        }
 
-        /* 4. JEU (20%) */
-        #game-ui { position: fixed; inset: 0; display: none; opacity: 0; transition: opacity 1s; background: #010105; }
-        #game-container { position: relative; width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; transform: scale(var(--scale)); }
-        #sun { width: 150px; height: 150px; background: radial-gradient(circle, #fff, #ffcc00, #ff8800); border-radius: 50%; box-shadow: 0 0 100px #ffaa00; z-index: 100; display: flex; align-items: center; justify-content: center; cursor: pointer; font-size: 80px; color: black; font-weight: 900; }
-        .orbit { position: absolute; border: 3px solid rgba(255,255,255,0.15); border-radius: 50%; pointer-events: none; }
-        .orbit-active { border-width: 10px; box-shadow: inset 0 0 60px currentColor, 0 0 60px currentColor; }
+        /* 4. ESPACE DE JEU (20%) */
+        #game-ui { position: fixed; inset: 0; display: none; background: #010105; z-index: 6000; }
+        #game-container { 
+            position: relative; width: 100vw; height: 100vh; 
+            display: flex; align-items: center; justify-content: center; transform: scale(var(--scale)); 
+        }
+        #sun { 
+            width: 160px; height: 160px; background: radial-gradient(circle, #fff, #ffcc00, #ff8800); 
+            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
+            cursor: pointer; font-size: 90px; color: black; font-weight: 900; box-shadow: 0 0 100px #ffaa00;
+        }
+        .orbit { position: absolute; border: 4px solid rgba(255,255,255,0.15); border-radius: 50%; pointer-events: none; }
+        .orbit-active { border-width: 12px; box-shadow: inset 0 0 80px currentColor, 0 0 80px currentColor; }
         .p-wrap { position: absolute; width: 100%; height: 100%; animation: rot linear infinite; }
-        .planet { position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); border-radius: 50%; cursor: pointer; pointer-events: auto; display: flex; align-items: center; justify-content: center; border: 5px solid white; }
-        .p-text { font-size: 38px; font-weight: 900; color: white; text-shadow: 4px 4px 6px black; }
+        .planet { 
+            position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); 
+            border-radius: 50%; cursor: pointer; pointer-events: auto; 
+            display: flex; align-items: center; justify-content: center; border: 6px solid white; 
+        }
+        .p-text { font-size: 42px; font-weight: 900; color: white; text-shadow: 4px 4px 8px black; }
         @keyframes rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
     </style>
 </head>
 <body>
 
-    <!-- ÉTAPE 1 : COUVERTURE -->
     <div id="cover-layer">
-        <img src="ardeco_cover_02.jpg" alt="Couverture" onerror="this.style.display='none';">
-        <button class="btn-main" onclick="startIntro()">ENTRER DANS LA MISSION</button>
+        <button class="btn-main" onclick="startSequence()">DÉMARRER LA MISSION</button>
     </div>
 
-    <!-- ÉTAPE 2 : FUSION -->
     <div id="intro-layer">
         <div class="word-box">
             <div id="word-left">GAM<span class="letter-e">E</span></div>
@@ -59,22 +82,19 @@
         </div>
     </div>
 
-    <!-- ÉTAPE 3 : CHOIX GAMME -->
     <div id="menu-gamme" class="menu-screen">
-        <h2>CHOISIR LA GAMME</h2>
-        <button class="btn-opt" onclick="selectGamme('DO')">DO MAJEUR</button>
-        <button class="btn-opt" onclick="selectGamme('SOL')">SOL MAJEUR</button>
+        <h2 style="color:var(--accent)">1. CHOISIR LA GAMME</h2>
+        <button class="btn-opt" onclick="setGamme('DO')">DO MAJEUR</button>
+        <button class="btn-opt" onclick="setGamme('SOL')">SOL MAJEUR</button>
     </div>
 
-    <!-- ÉTAPE 4 : CHOIX JOUEURS -->
     <div id="menu-players" class="menu-screen">
-        <h2>NOMBRE DE JOUEURS</h2>
-        <button class="btn-opt" onclick="selectPlayers(1)">1 JOUEUR</button>
-        <button class="btn-opt" onclick="selectPlayers(2)">2 JOUEURS</button>
-        <button class="btn-opt" onclick="selectPlayers(4)">4 JOUEURS</button>
+        <h2 style="color:var(--accent)">2. NOMBRE DE JOUEURS</h2>
+        <button class="btn-opt" onclick="setPlayers(1)">1 JOUEUR</button>
+        <button class="btn-opt" onclick="setPlayers(2)">2 JOUEURS</button>
+        <button class="btn-opt" onclick="setPlayers(4)">4 JOUEURS</button>
     </div>
 
-    <!-- ÉTAPE 5 : LE JEU -->
     <div id="game-ui">
         <div id="game-container"><div id="sun" onclick="location.reload()">S</div></div>
     </div>
@@ -87,36 +107,38 @@
             'DO': [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25],
             'SOL': [196.0, 220.0, 246.94, 261.63, 293.66, 329.63, 369.99, 392.0]
         };
+
         const PLANETS = [
-            { id: "Me", c: "#A5A5A5", s: 90, d: 350, v: 8 },
-            { id: "Ve", c: "#E3BB76", s: 105, d: 550, v: 12 },
-            { id: "Ea", c: "#2271B3", s: 110, d: 750, v: 16 },
-            { id: "Ma", c: "#E27B58", s: 100, d: 950, v: 22 },
-            { id: "Ju", c: "#D39C7E", s: 180, d: 1300, v: 30 },
-            { id: "Sa", c: "#C5AB6E", s: 160, d: 1700, v: 40 },
-            { id: "Ur", c: "#BBE1E4", s: 120, d: 2100, v: 55 },
-            { id: "Ne", c: "#6081FF", s: 120, d: 2500, v: 70 }
+            { id: "Me", c: "#A5A5A5", s: 100, d: 380, v: 8 },
+            { id: "Ve", c: "#E3BB76", s: 115, d: 580, v: 12 },
+            { id: "Ea", c: "#2271B3", s: 120, d: 780, v: 16 },
+            { id: "Ma", c: "#E27B58", s: 110, d: 980, v: 22 },
+            { id: "Ju", c: "#D39C7E", s: 190, d: 1350, v: 30 },
+            { id: "Sa", c: "#C5AB6E", s: 170, d: 1750, v: 40 },
+            { id: "Ur", c: "#BBE1E4", s: 130, d: 2150, v: 55 },
+            { id: "Ne", c: "#6081FF", s: 130, d: 2550, v: 70 }
         ];
 
-        function startIntro() {
+        function startSequence() {
             document.getElementById('cover-layer').style.display = 'none';
             document.getElementById('intro-layer').style.display = 'flex';
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
             
             setTimeout(() => {
                 document.getElementById('intro-layer').classList.add('fusion-active');
-                // Son du choc
+                
+                // Son du Choc
                 const o = audioCtx.createOscillator();
                 const g = audioCtx.createGain();
                 o.type = 'sawtooth';
-                o.frequency.setValueAtTime(100, audioCtx.currentTime);
-                o.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.6);
-                g.gain.setValueAtTime(0.5, audioCtx.currentTime);
-                g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.6);
+                o.frequency.setValueAtTime(120, audioCtx.currentTime);
+                o.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.5);
+                g.gain.setValueAtTime(0.6, audioCtx.currentTime);
+                g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
                 o.connect(g); g.connect(audioCtx.destination);
-                o.start(); o.stop(audioCtx.currentTime + 0.6);
+                o.start(); o.stop(audioCtx.currentTime + 0.5);
 
-                // Pause sur le mot composé complet "GAMAFLAK"
+                // Pause de 2 secondes sur le mot GAMAFLAK complet
                 setTimeout(() => {
                     document.getElementById('intro-layer').style.display = 'none';
                     document.getElementById('menu-gamme').style.display = 'flex';
@@ -124,22 +146,20 @@
             }, 500);
         }
 
-        function selectGamme(g) {
+        function setGamme(g) {
             config.gamme = g;
             document.getElementById('menu-gamme').style.display = 'none';
             document.getElementById('menu-players').style.display = 'flex';
         }
 
-        function selectPlayers(p) {
+        function setPlayers(p) {
             config.players = p;
             document.getElementById('menu-players').style.display = 'none';
-            launchGame();
+            document.getElementById('game-ui').style.display = 'block';
+            buildUniverse();
         }
 
-        function launchGame() {
-            document.getElementById('game-ui').style.display = 'block';
-            setTimeout(() => document.getElementById('game-ui').style.opacity = '1', 50);
-            
+        function buildUniverse() {
             const container = document.getElementById('game-container');
             PLANETS.forEach((p, i) => {
                 const orb = document.createElement('div');
@@ -162,10 +182,10 @@
                     osc.type = 'triangle';
                     osc.frequency.setValueAtTime(FREQS[config.gamme][i], audioCtx.currentTime);
                     g.gain.setValueAtTime(0, audioCtx.currentTime);
-                    g.gain.linearRampToValueAtTime(0.4, audioCtx.currentTime + 0.05);
-                    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1);
+                    g.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
+                    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
                     osc.connect(g); g.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 1);
+                    osc.start(); osc.stop(audioCtx.currentTime + 1.2);
                     orb.classList.add('orbit-active');
                     setTimeout(() => orb.classList.remove('orbit-active'), 500);
                 };
