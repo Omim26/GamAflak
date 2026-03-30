@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gamaflak2-v1';
+const CACHE_NAME = 'gamaflak';
 const ASSETS = [
   '/',
   'index.html',

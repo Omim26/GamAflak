@@ -3,206 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GAMAFLAK PRO | Master</title>
-    <!-- Moteurs Performance -->
+    <link rel="manifest" href="manifest.json">
+    <title>GAMAFLAK PRO | Score Edition</title>
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
-        :root { --accent: #00ffcc; --danger: #ff3e3e; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Orbitron', sans-serif; }
-        canvas { display: block; width: 100vw; height: 100vh; }
-
-        /* UI STRATA */
-        .layer { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.5s; }
-        #overlay { background: radial-gradient(circle, #1a1a1a, #000); flex-direction: column; }
-        
-        .btn-start { 
-            padding: 25px 50px; background: none; border: 4px solid var(--accent); color: var(--accent);
-            font-family: 'Orbitron'; font-size: 1.5rem; font-weight: 900; cursor: pointer;
-            text-transform: uppercase; border-radius: 15px; box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
-        }
-        .btn-start:active { transform: scale(0.95); background: var(--accent); color: #000; }
-
-        /* FUSION ANIMATION */
-        #intro { display: none; background: #000; z-index: 200; }
-        .word-wrap { display: flex; font-size: 5rem; font-weight: 900; letter-spacing: -2px; }
-        #part-l { color: var(--danger); transform: translateX(-100vw); transition: 0.7s cubic-bezier(0.17, 0.88, 0.32, 1.2); }
-        #part-r { color: var(--accent); transform: translateX(100vw); transition: 0.7s cubic-bezier(0.17, 0.88, 0.32, 1.2); }
-        .fusion #part-l { transform: translateX(42px); }
-        .fusion #part-r { transform: translateX(-42px); }
+        :root { --accent: #00ffcc; }
+        body, html { margin: 0; padding: 0; background: #000; overflow: hidden; font-family: 'Orbitron', sans-serif; }
+        #ui-score { position: fixed; top: 20px; right: 20px; color: var(--accent); font-size: 2rem; z-index: 1000; text-shadow: 0 0 10px var(--accent); }
+        .layer { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; background: #000; }
+        .btn-start { padding: 20px 40px; border: 3px solid var(--accent); color: var(--accent); background: none; font-family: 'Orbitron'; font-size: 1.5rem; cursor: pointer; }
     </style>
 </head>
 <body>
 
-    <div id="overlay" class="layer">
-        <button class="btn-start" onclick="launchSequence()">Démarrer la Mission</button>
-    </div>
+    <div id="ui-score">SCORE: 0</div>
 
-    <div id="intro" class="layer">
-        <div class="word-wrap">
-            <div id="part-l">GAM</div>
-            <div id="part-r">AFLAK</div>
-        </div>
+    <div id="overlay" class="layer">
+        <button class="btn-start" onclick="launch()">DÉMARRER</button>
     </div>
 
     <script>
-        let app, synth, pulseLine, planets = [];
-        let isGameReady = false;
-        let scannerAngle = 0;
+        let app, synth, planets = [], score = 0;
+        const scoreElement = document.getElementById('ui-score');
 
-        const MUSIQUE = {
-            notes: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25], // DO Majeur
-            colors: [0xFF3E3E, 0xFF7E3E, 0xFFCC00, 0x3EFF7E, 0x00FFCC, 0x3E7EFF, 0x7E3EFF, 0xFF3EEF]
-        };
-
-        async function launchSequence() {
-            // 1. Init Audio (Débloque le navigateur)
-            await Tone.start();
-            synth = new Tone.PolySynth(Tone.Synth).toDestination();
-            const reverb = new Tone.Reverb(2).toDestination();
-            synth.connect(reverb);
-
-            // 2. Intro VFX
-            document.getElementById('overlay').style.opacity = '0';
-            setTimeout(() => {
-                document.getElementById('overlay').style.display = 'none';
-                document.getElementById('intro').style.display = 'flex';
-                setTimeout(() => {
-                    document.getElementById('intro').classList.add('fusion');
-                    // Son d'impact
-                    const impact = new Tone.MembraneSynth().toDestination();
-                    impact.triggerAttackRelease("C1", "4n");
-                    
-                    setTimeout(() => {
-                        document.getElementById('intro').style.opacity = '0';
-                        initUniverse();
-                    }, 1800);
-                }, 100);
-            }, 500);
+        // Enregistrement du Service Worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js');
         }
 
-        function initUniverse() {
-            document.getElementById('intro').style.display = 'none';
-            
-            // PIXI Application
-            app = new PIXI.Application({
-                background: '#010105',
-                resizeTo: window,
-                antialias: true,
-                resolution: window.devicePixelRatio || 1
-            });
-            document.body.appendChild(app.view);
+        async function launch() {
+            await Tone.start();
+            document.getElementById('overlay').style.display = 'none';
+            initGame();
+        }
 
+        function initGame() {
+            app = new PIXI.Application({ background: '#010105', resizeTo: window, antialias: true });
+            document.body.appendChild(app.view);
+            
+            synth = new Tone.PolySynth(Tone.Synth).toDestination();
             const centerX = app.screen.width / 2;
             const centerY = app.screen.height / 2;
 
-            // 1. Soleil
-            const sun = new PIXI.Graphics();
-            sun.beginFill(0xFFCC00);
-            sun.drawCircle(0, 0, 40);
-            sun.endFill();
-            sun.x = centerX; sun.y = centerY;
-            app.stage.addChild(sun);
-
-            // 2. Création des 8 Orbites/Planètes
             for (let i = 0; i < 8; i++) {
-                const dist = 80 + (i * 50); // Espacement progressif
-                
-                // Dessin Orbite
-                const orbit = new PIXI.Graphics();
-                orbit.lineStyle(1, 0x333333, 0.5);
-                orbit.drawCircle(centerX, centerY, dist);
-                app.stage.addChild(orbit);
+                const dist = 80 + (i * 50);
+                const pScore = (i + 1) * 50; // Calcul du score : 50, 100, 150... 400
 
-                // Dessin Planète
                 const p = new PIXI.Graphics();
-                p.beginFill(MUSIQUE.colors[i]);
-                p.drawCircle(0, 0, 18);
+                p.beginFill(0xFFFFFF, 0.2);
+                p.drawCircle(0, 0, 20);
                 p.endFill();
                 
-                // Propriétés personnalisées
                 p.interactive = true;
-                p.cursor = 'pointer';
+                p.x = centerX + dist;
+                p.y = centerY;
                 p.dist = dist;
                 p.angle = Math.random() * Math.PI * 2;
-                p.speed = 0.005 + (Math.random() * 0.01);
+                p.valeurScore = pScore; // On stocke la valeur
                 p.active = false;
-                p.alpha = 0.3; // Éteinte par défaut
-                p.note = MUSIQUE.notes[i];
-                p.hasPlayed = false; // Sécurité pour ne pas jouer 100 fois par passage
 
-                // Interaction
                 p.on('pointerdown', () => {
                     p.active = !p.active;
-                    p.alpha = p.active ? 1 : 0.3;
-                    if(p.active) playNote(p.note);
+                    if(p.active) {
+                        p.tint = 0x00ffcc;
+                        updateScore(p.valeurScore);
+                        synth.triggerAttackRelease(261 + (i * 30), "8n");
+                    } else {
+                        p.tint = 0xFFFFFF;
+                    }
                 });
 
                 planets.push(p);
                 app.stage.addChild(p);
             }
 
-            // 3. Scanner (Le Pulsar)
-            pulseLine = new PIXI.Graphics();
-            app.stage.addChild(pulseLine);
-
-            isGameReady = true;
-            app.ticker.add(update);
-        }
-
-        function playNote(freq) {
-            synth.triggerAttackRelease(freq, "8n");
-        }
-
-        function update(delta) {
-            if (!isGameReady) return;
-
-            const cx = app.screen.width / 2;
-            const cy = app.screen.height / 2;
-
-            // Mise à jour du Scanner (rotation)
-            scannerAngle += 0.03 * delta;
-            const normScannerAngle = scannerAngle % (Math.PI * 2);
-
-            pulseLine.clear();
-            pulseLine.lineStyle(2, 0x00FFCC, 0.4);
-            pulseLine.moveTo(cx, cy);
-            pulseLine.lineTo(
-                cx + Math.cos(scannerAngle) * 500,
-                cy + Math.sin(scannerAngle) * 500
-            );
-
-            // Mise à jour des planètes
-            planets.forEach(p => {
-                p.angle += p.speed * delta;
-                p.x = cx + Math.cos(p.angle) * p.dist;
-                p.y = cy + Math.sin(p.angle) * p.dist;
-
-                // Logique de collision angulaire
-                const normPlanetAngle = p.angle % (Math.PI * 2);
-                let diff = Math.abs(normScannerAngle - normPlanetAngle);
-
-                if (diff < 0.1) {
-                    if (!p.hasPlayed && p.active) {
-                        playNote(p.note);
-                        p.scale.set(1.5); // Animation visuelle
-                        p.hasPlayed = true;
-                    }
-                } else {
-                    p.hasPlayed = false;
-                    p.scale.set(1);
-                }
+            app.ticker.add(() => {
+                planets.forEach(p => {
+                    p.angle += 0.01;
+                    p.x = (app.screen.width / 2) + Math.cos(p.angle) * p.dist;
+                    p.y = (app.screen.height / 2) + Math.sin(p.angle) * p.dist;
+                });
             });
         }
 
-        // Gestion du Resize Mobile
-        window.addEventListener('resize', () => {
-            if(app) {
-                app.renderer.resize(window.innerWidth, window.innerHeight);
-                // Repositionner les éléments fixes si nécessaire
-            }
-        });
+        function updateScore(points) {
+            score += points;
+            scoreElement.innerText = `SCORE: ${score}`;
+            // Petit effet de vibration sur le score
+            scoreElement.style.transform = "scale(1.2)";
+            setTimeout(() => scoreElement.style.transform = "scale(1)", 100);
+        }
     </script>
 </body>
 </html>
