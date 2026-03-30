@@ -3,184 +3,206 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GAMAFLAK PRO | Next-Gen</title>
+    <title>GAMAFLAK PRO | Master</title>
+    <!-- Moteurs Performance -->
     <script src="https://cloudflare.com"></script>
     <script src="https://cloudflare.com"></script>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
-        :root { --accent: #00ffcc; }
+        :root { --accent: #00ffcc; --danger: #ff3e3e; }
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Orbitron', sans-serif; }
         canvas { display: block; width: 100vw; height: 100vh; }
 
-        /* INTERFACE */
-        .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: 0.5s; }
-        #cover { background: radial-gradient(circle, #1a1a1a, #000); }
-        .btn { 
-            padding: 20px 40px; background: none; border: 2px solid var(--accent); color: var(--accent);
-            font-family: 'Orbitron'; font-size: 1.2rem; cursor: pointer; text-transform: uppercase;
-            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3); border-radius: 5px;
+        /* UI STRATA */
+        .layer { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 100; transition: opacity 0.5s; }
+        #overlay { background: radial-gradient(circle, #1a1a1a, #000); flex-direction: column; }
+        
+        .btn-start { 
+            padding: 25px 50px; background: none; border: 4px solid var(--accent); color: var(--accent);
+            font-family: 'Orbitron'; font-size: 1.5rem; font-weight: 900; cursor: pointer;
+            text-transform: uppercase; border-radius: 15px; box-shadow: 0 0 30px rgba(0, 255, 204, 0.4);
         }
-        .btn:active { background: var(--accent); color: black; }
+        .btn-start:active { transform: scale(0.95); background: var(--accent); color: #000; }
 
-        /* FUSION INTRO */
-        #intro-box { display: none; font-size: 5rem; font-weight: 900; }
-        .word { transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
-        #word-l { color: #ff3e3e; transform: translateX(-100vw); }
-        #word-r { color: var(--accent); transform: translateX(100vw); }
-        .fusion #word-l { transform: translateX(45px); }
-        .fusion #word-r { transform: translateX(-45px); }
+        /* FUSION ANIMATION */
+        #intro { display: none; background: #000; z-index: 200; }
+        .word-wrap { display: flex; font-size: 5rem; font-weight: 900; letter-spacing: -2px; }
+        #part-l { color: var(--danger); transform: translateX(-100vw); transition: 0.7s cubic-bezier(0.17, 0.88, 0.32, 1.2); }
+        #part-r { color: var(--accent); transform: translateX(100vw); transition: 0.7s cubic-bezier(0.17, 0.88, 0.32, 1.2); }
+        .fusion #part-l { transform: translateX(42px); }
+        .fusion #part-r { transform: translateX(-42px); }
     </style>
 </head>
 <body>
 
-    <!-- Écran de démarrage -->
-    <div id="cover" class="overlay">
-        <button class="btn" onclick="initApp()">Lancer la Mission</button>
+    <div id="overlay" class="layer">
+        <button class="btn-start" onclick="launchSequence()">Démarrer la Mission</button>
     </div>
 
-    <!-- Intro GAMAFLAK -->
-    <div id="intro" class="overlay" style="display:none; background:#000;">
-        <div id="intro-box" style="display:flex;">
-            <div id="word-l" class="word">GAM</div>
-            <div id="word-r" class="word">AFLAK</div>
+    <div id="intro" class="layer">
+        <div class="word-wrap">
+            <div id="part-l">GAM</div>
+            <div id="part-r">AFLAK</div>
         </div>
     </div>
 
     <script>
-        let app, synth, pContainer, line;
-        const CONFIG = {
-            gamme: [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25], // DO Majeur
-            planets: [
-                { d: 120, size: 25, color: 0xA5A5A5, speed: 0.02 },
-                { d: 180, size: 30, color: 0xE3BB76, speed: 0.015 },
-                { d: 240, size: 35, color: 0x2271B3, speed: 0.012 },
-                { d: 300, size: 28, color: 0xE27B58, speed: 0.01 },
-                { d: 380, size: 50, color: 0xD39C7E, speed: 0.008 },
-                { d: 480, size: 45, color: 0xC5AB6E, speed: 0.006 },
-                { d: 560, size: 35, color: 0xBBE1E4, speed: 0.004 },
-                { d: 640, size: 35, color: 0x6081FF, speed: 0.003 }
-            ]
+        let app, synth, pulseLine, planets = [];
+        let isGameReady = false;
+        let scannerAngle = 0;
+
+        const MUSIQUE = {
+            notes: [261.63, 293.66, 329.63, 349.23, 392.00, 440.00, 493.88, 523.25], // DO Majeur
+            colors: [0xFF3E3E, 0xFF7E3E, 0xFFCC00, 0x3EFF7E, 0x00FFCC, 0x3E7EFF, 0x7E3EFF, 0xFF3EEF]
         };
 
-        async function initApp() {
-            document.getElementById('cover').style.display = 'none';
-            document.getElementById('intro').style.display = 'flex';
-            
-            // Audio init
+        async function launchSequence() {
+            // 1. Init Audio (Débloque le navigateur)
             await Tone.start();
             synth = new Tone.PolySynth(Tone.Synth).toDestination();
-            const reverb = new Tone.Reverb(3).toDestination();
+            const reverb = new Tone.Reverb(2).toDestination();
             synth.connect(reverb);
 
-            // Intro Animation
+            // 2. Intro VFX
+            document.getElementById('overlay').style.opacity = '0';
             setTimeout(() => {
-                document.getElementById('intro').classList.add('fusion');
-                // Son d'impact
-                const noise = new Tone.NoiseSynth().toDestination();
-                noise.triggerAttackRelease("16n");
-                
+                document.getElementById('overlay').style.display = 'none';
+                document.getElementById('intro').style.display = 'flex';
                 setTimeout(() => {
-                    document.getElementById('intro').style.opacity = '0';
-                    setTimeout(setupGame, 600);
-                }, 1500);
+                    document.getElementById('intro').classList.add('fusion');
+                    // Son d'impact
+                    const impact = new Tone.MembraneSynth().toDestination();
+                    impact.triggerAttackRelease("C1", "4n");
+                    
+                    setTimeout(() => {
+                        document.getElementById('intro').style.opacity = '0';
+                        initUniverse();
+                    }, 1800);
+                }, 100);
             }, 500);
         }
 
-        function setupGame() {
+        function initUniverse() {
             document.getElementById('intro').style.display = 'none';
             
-            // PixiJS Engine
-            app = new PIXI.Application({ 
-                background: '#010105', 
-                resizeTo: window, 
+            // PIXI Application
+            app = new PIXI.Application({
+                background: '#010105',
+                resizeTo: window,
                 antialias: true,
                 resolution: window.devicePixelRatio || 1
             });
             document.body.appendChild(app.view);
 
-            pContainer = new PIXI.Container();
-            pContainer.x = app.screen.width / 2;
-            pContainer.y = app.screen.height / 2;
-            app.stage.addChild(pContainer);
+            const centerX = app.screen.width / 2;
+            const centerY = app.screen.height / 2;
 
-            // Soleil central
+            // 1. Soleil
             const sun = new PIXI.Graphics();
             sun.beginFill(0xFFCC00);
-            sun.drawCircle(0, 0, 50);
+            sun.drawCircle(0, 0, 40);
             sun.endFill();
-            pContainer.addChild(sun);
+            sun.x = centerX; sun.y = centerY;
+            app.stage.addChild(sun);
 
-            // Création des orbites et planètes
-            CONFIG.planets.forEach((p, i) => {
-                // Orbite
-                const orbit = new PIXI.Graphics();
-                orbit.lineStyle(2, 0x333333);
-                orbit.drawCircle(0, 0, p.d);
-                pContainer.addChild(orbit);
-
-                // Planète
-                const planet = new PIXI.Graphics();
-                planet.beginFill(p.color);
-                planet.drawCircle(0, 0, p.size);
-                planet.endFill();
-                planet.x = p.d;
-                planet.interactive = true;
-                planet.cursor = 'pointer';
-                planet.active = false;
+            // 2. Création des 8 Orbites/Planètes
+            for (let i = 0; i < 8; i++) {
+                const dist = 80 + (i * 50); // Espacement progressif
                 
-                // Effet au clic (PointerDown pour Android)
-                planet.on('pointerdown', () => {
-                    planet.active = !planet.active;
-                    planet.alpha = planet.active ? 1 : 0.4;
-                    if(planet.active) playNote(i);
-                });
-                planet.alpha = 0.4;
+                // Dessin Orbite
+                const orbit = new PIXI.Graphics();
+                orbit.lineStyle(1, 0x333333, 0.5);
+                orbit.drawCircle(centerX, centerY, dist);
+                app.stage.addChild(orbit);
 
-                // Animation de rotation propre
-                p.graphic = planet;
+                // Dessin Planète
+                const p = new PIXI.Graphics();
+                p.beginFill(MUSIQUE.colors[i]);
+                p.drawCircle(0, 0, 18);
+                p.endFill();
+                
+                // Propriétés personnalisées
+                p.interactive = true;
+                p.cursor = 'pointer';
+                p.dist = dist;
                 p.angle = Math.random() * Math.PI * 2;
-                pContainer.addChild(planet);
-            });
+                p.speed = 0.005 + (Math.random() * 0.01);
+                p.active = false;
+                p.alpha = 0.3; // Éteinte par défaut
+                p.note = MUSIQUE.notes[i];
+                p.hasPlayed = false; // Sécurité pour ne pas jouer 100 fois par passage
 
-            // Rayon Pulsar (Séquenceur)
-            line = new PIXI.Graphics();
-            app.stage.addChild(line);
+                // Interaction
+                p.on('pointerdown', () => {
+                    p.active = !p.active;
+                    p.alpha = p.active ? 1 : 0.3;
+                    if(p.active) playNote(p.note);
+                });
 
-            app.ticker.add(gameLoop);
+                planets.push(p);
+                app.stage.addChild(p);
+            }
+
+            // 3. Scanner (Le Pulsar)
+            pulseLine = new PIXI.Graphics();
+            app.stage.addChild(pulseLine);
+
+            isGameReady = true;
+            app.ticker.add(update);
         }
 
-        function playNote(index) {
-            const freq = CONFIG.gamme[index % CONFIG.gamme.length];
+        function playNote(freq) {
             synth.triggerAttackRelease(freq, "8n");
         }
 
-        let sweepAngle = 0;
-        function gameLoop(delta) {
-            sweepAngle += 0.02 * delta;
-            
-            // Dessiner la ligne du séquenceur
-            line.clear();
-            line.lineStyle(3, 0x00ffcc, 0.5);
-            line.moveTo(app.screen.width/2, app.screen.height/2);
-            const lx = app.screen.width/2 + Math.cos(sweepAngle) * 800;
-            const ly = app.screen.height/2 + Math.sin(sweepAngle) * 800;
-            line.lineTo(lx, ly);
+        function update(delta) {
+            if (!isGameReady) return;
 
-            CONFIG.planets.forEach((p, i) => {
+            const cx = app.screen.width / 2;
+            const cy = app.screen.height / 2;
+
+            // Mise à jour du Scanner (rotation)
+            scannerAngle += 0.03 * delta;
+            const normScannerAngle = scannerAngle % (Math.PI * 2);
+
+            pulseLine.clear();
+            pulseLine.lineStyle(2, 0x00FFCC, 0.4);
+            pulseLine.moveTo(cx, cy);
+            pulseLine.lineTo(
+                cx + Math.cos(scannerAngle) * 500,
+                cy + Math.sin(scannerAngle) * 500
+            );
+
+            // Mise à jour des planètes
+            planets.forEach(p => {
                 p.angle += p.speed * delta;
-                p.graphic.x = Math.cos(p.angle) * p.d;
-                p.graphic.y = Math.sin(p.angle) * p.d;
+                p.x = cx + Math.cos(p.angle) * p.dist;
+                p.y = cy + Math.sin(p.angle) * p.dist;
 
-                // Détection de passage du séquenceur (Collision angulaire)
-                let diff = (sweepAngle % (Math.PI * 2)) - (p.angle % (Math.PI * 2));
-                if (Math.abs(diff) < 0.05 && p.graphic.active) {
-                    playNote(i);
-                    p.graphic.scale.set(1.3);
+                // Logique de collision angulaire
+                const normPlanetAngle = p.angle % (Math.PI * 2);
+                let diff = Math.abs(normScannerAngle - normPlanetAngle);
+
+                if (diff < 0.1) {
+                    if (!p.hasPlayed && p.active) {
+                        playNote(p.note);
+                        p.scale.set(1.5); // Animation visuelle
+                        p.hasPlayed = true;
+                    }
                 } else {
-                    p.graphic.scale.set(1);
+                    p.hasPlayed = false;
+                    p.scale.set(1);
                 }
             });
         }
+
+        // Gestion du Resize Mobile
+        window.addEventListener('resize', () => {
+            if(app) {
+                app.renderer.resize(window.innerWidth, window.innerHeight);
+                // Repositionner les éléments fixes si nécessaire
+            }
+        });
     </script>
 </body>
 </html>
