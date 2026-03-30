@@ -3,193 +3,182 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>GAMAFLAK PRO</title>
+    <title>GAMAFLAK PRO | Next-Gen</title>
+    <script src="https://cloudflare.com"></script>
+    <script src="https://cloudflare.com"></script>
     <link href="https://googleapis.com" rel="stylesheet">
     <style>
-        :root { --accent: #00ffcc; --scale: 0.2; }
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; color: white; font-family: 'Orbitron', sans-serif; overflow: hidden; }
-        
-        /* 1. COUVERTURE (FORCÉE) */
-        #cover-layer { 
-            position: fixed; inset: 0; z-index: 9999; 
-            background: url('ardeco_cover_02.jpg') no-repeat center center; 
-            background-size: cover; display: flex; align-items: center; justify-content: center;
-        }
-        .btn-main { 
-            padding: 25px 50px; background: rgba(0,0,0,0.85); border: 4px solid var(--accent); 
-            color: white; font-size: 1.5rem; font-weight: 900; cursor: pointer; border-radius: 15px;
-            box-shadow: 0 0 20px var(--accent);
-        }
+        :root { --accent: #00ffcc; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: 'Orbitron', sans-serif; }
+        canvas { display: block; width: 100vw; height: 100vh; }
 
-        /* 2. FUSION GAMAFLAK */
-        #intro-layer { 
-            position: fixed; inset: 0; background: #000; z-index: 8000;
-            display: none; align-items: center; justify-content: center; 
+        /* INTERFACE */
+        .overlay { position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; transition: 0.5s; }
+        #cover { background: radial-gradient(circle, #1a1a1a, #000); }
+        .btn { 
+            padding: 20px 40px; background: none; border: 2px solid var(--accent); color: var(--accent);
+            font-family: 'Orbitron'; font-size: 1.2rem; cursor: pointer; text-transform: uppercase;
+            box-shadow: 0 0 15px rgba(0, 255, 204, 0.3); border-radius: 5px;
         }
-        .word-box { display: flex; font-size: 5rem; font-weight: 900; letter-spacing: -2px; }
-        #word-left { color: #ff3e3e; transform: translateX(-120vw); transition: transform 0.6s ease-out; }
-        #word-right { color: var(--accent); transform: translateX(120vw); transition: transform 0.6s ease-out; }
-        .letter-e { display: inline-block; transition: all 0.2s; width: 1em; overflow: hidden; }
-        
-        /* Ajustement précis pour que GAME + AFLAK devienne GAMAFLAK sans espace */
-        .fusion-active #word-left { transform: translateX(42px); } 
-        .fusion-active #word-right { transform: translateX(-42px); }
-        .fusion-active .letter-e { width: 0; opacity: 0; transform: scaleX(0); margin: 0; }
+        .btn:active { background: var(--accent); color: black; }
 
-        /* 3. MENUS SÉPARÉS */
-        .menu-screen { 
-            position: fixed; inset: 0; background: #000; z-index: 7000;
-            display: none; flex-direction: column; align-items: center; justify-content: center; 
-        }
-        .btn-opt { 
-            margin: 15px; padding: 20px; border: 2px solid var(--accent); background: none; 
-            color: white; font-family: 'Orbitron'; font-size: 1.2rem; width: 280px; cursor: pointer;
-        }
-
-        /* 4. ESPACE DE JEU (20%) */
-        #game-ui { position: fixed; inset: 0; display: none; background: #010105; z-index: 6000; }
-        #game-container { 
-            position: relative; width: 100vw; height: 100vh; 
-            display: flex; align-items: center; justify-content: center; transform: scale(var(--scale)); 
-        }
-        #sun { 
-            width: 160px; height: 160px; background: radial-gradient(circle, #fff, #ffcc00, #ff8800); 
-            border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-            cursor: pointer; font-size: 90px; color: black; font-weight: 900; box-shadow: 0 0 100px #ffaa00;
-        }
-        .orbit { position: absolute; border: 4px solid rgba(255,255,255,0.15); border-radius: 50%; pointer-events: none; }
-        .orbit-active { border-width: 12px; box-shadow: inset 0 0 80px currentColor, 0 0 80px currentColor; }
-        .p-wrap { position: absolute; width: 100%; height: 100%; animation: rot linear infinite; }
-        .planet { 
-            position: absolute; top: 0; left: 50%; transform: translate(-50%, -50%); 
-            border-radius: 50%; cursor: pointer; pointer-events: auto; 
-            display: flex; align-items: center; justify-content: center; border: 6px solid white; 
-        }
-        .p-text { font-size: 42px; font-weight: 900; color: white; text-shadow: 4px 4px 8px black; }
-        @keyframes rot { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+        /* FUSION INTRO */
+        #intro-box { display: none; font-size: 5rem; font-weight: 900; }
+        .word { transition: 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275); }
+        #word-l { color: #ff3e3e; transform: translateX(-100vw); }
+        #word-r { color: var(--accent); transform: translateX(100vw); }
+        .fusion #word-l { transform: translateX(45px); }
+        .fusion #word-r { transform: translateX(-45px); }
     </style>
 </head>
 <body>
 
-    <div id="cover-layer">
-        <button class="btn-main" onclick="startSequence()">DÉMARRER LA MISSION</button>
+    <!-- Écran de démarrage -->
+    <div id="cover" class="overlay">
+        <button class="btn" onclick="initApp()">Lancer la Mission</button>
     </div>
 
-    <div id="intro-layer">
-        <div class="word-box">
-            <div id="word-left">GAM<span class="letter-e">E</span></div>
-            <div id="word-right">AFLAK</div>
+    <!-- Intro GAMAFLAK -->
+    <div id="intro" class="overlay" style="display:none; background:#000;">
+        <div id="intro-box" style="display:flex;">
+            <div id="word-l" class="word">GAM</div>
+            <div id="word-r" class="word">AFLAK</div>
         </div>
     </div>
 
-    <div id="menu-gamme" class="menu-screen">
-        <h2 style="color:var(--accent)">1. CHOISIR LA GAMME</h2>
-        <button class="btn-opt" onclick="setGamme('DO')">DO MAJEUR</button>
-        <button class="btn-opt" onclick="setGamme('SOL')">SOL MAJEUR</button>
-    </div>
-
-    <div id="menu-players" class="menu-screen">
-        <h2 style="color:var(--accent)">2. NOMBRE DE JOUEURS</h2>
-        <button class="btn-opt" onclick="setPlayers(1)">1 JOUEUR</button>
-        <button class="btn-opt" onclick="setPlayers(2)">2 JOUEURS</button>
-        <button class="btn-opt" onclick="setPlayers(4)">4 JOUEURS</button>
-    </div>
-
-    <div id="game-ui">
-        <div id="game-container"><div id="sun" onclick="location.reload()">S</div></div>
-    </div>
-
     <script>
-        let config = { gamme: '', players: 0 };
-        let audioCtx = null;
-
-        const FREQS = { 
-            'DO': [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25],
-            'SOL': [196.0, 220.0, 246.94, 261.63, 293.66, 329.63, 369.99, 392.0]
+        let app, synth, pContainer, line;
+        const CONFIG = {
+            gamme: [261.63, 293.66, 329.63, 349.23, 392.0, 440.0, 493.88, 523.25], // DO Majeur
+            planets: [
+                { d: 120, size: 25, color: 0xA5A5A5, speed: 0.02 },
+                { d: 180, size: 30, color: 0xE3BB76, speed: 0.015 },
+                { d: 240, size: 35, color: 0x2271B3, speed: 0.012 },
+                { d: 300, size: 28, color: 0xE27B58, speed: 0.01 },
+                { d: 380, size: 50, color: 0xD39C7E, speed: 0.008 },
+                { d: 480, size: 45, color: 0xC5AB6E, speed: 0.006 },
+                { d: 560, size: 35, color: 0xBBE1E4, speed: 0.004 },
+                { d: 640, size: 35, color: 0x6081FF, speed: 0.003 }
+            ]
         };
 
-        const PLANETS = [
-            { id: "Me", c: "#A5A5A5", s: 100, d: 380, v: 8 },
-            { id: "Ve", c: "#E3BB76", s: 115, d: 580, v: 12 },
-            { id: "Ea", c: "#2271B3", s: 120, d: 780, v: 16 },
-            { id: "Ma", c: "#E27B58", s: 110, d: 980, v: 22 },
-            { id: "Ju", c: "#D39C7E", s: 190, d: 1350, v: 30 },
-            { id: "Sa", c: "#C5AB6E", s: 170, d: 1750, v: 40 },
-            { id: "Ur", c: "#BBE1E4", s: 130, d: 2150, v: 55 },
-            { id: "Ne", c: "#6081FF", s: 130, d: 2550, v: 70 }
-        ];
-
-        function startSequence() {
-            document.getElementById('cover-layer').style.display = 'none';
-            document.getElementById('intro-layer').style.display = 'flex';
-            audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        async function initApp() {
+            document.getElementById('cover').style.display = 'none';
+            document.getElementById('intro').style.display = 'flex';
             
-            setTimeout(() => {
-                document.getElementById('intro-layer').classList.add('fusion-active');
-                
-                // Son du Choc
-                const o = audioCtx.createOscillator();
-                const g = audioCtx.createGain();
-                o.type = 'sawtooth';
-                o.frequency.setValueAtTime(120, audioCtx.currentTime);
-                o.frequency.exponentialRampToValueAtTime(20, audioCtx.currentTime + 0.5);
-                g.gain.setValueAtTime(0.6, audioCtx.currentTime);
-                g.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.5);
-                o.connect(g); g.connect(audioCtx.destination);
-                o.start(); o.stop(audioCtx.currentTime + 0.5);
+            // Audio init
+            await Tone.start();
+            synth = new Tone.PolySynth(Tone.Synth).toDestination();
+            const reverb = new Tone.Reverb(3).toDestination();
+            synth.connect(reverb);
 
-                // Pause de 2 secondes sur le mot GAMAFLAK complet
+            // Intro Animation
+            setTimeout(() => {
+                document.getElementById('intro').classList.add('fusion');
+                // Son d'impact
+                const noise = new Tone.NoiseSynth().toDestination();
+                noise.triggerAttackRelease("16n");
+                
                 setTimeout(() => {
-                    document.getElementById('intro-layer').style.display = 'none';
-                    document.getElementById('menu-gamme').style.display = 'flex';
-                }, 2000); 
+                    document.getElementById('intro').style.opacity = '0';
+                    setTimeout(setupGame, 600);
+                }, 1500);
             }, 500);
         }
 
-        function setGamme(g) {
-            config.gamme = g;
-            document.getElementById('menu-gamme').style.display = 'none';
-            document.getElementById('menu-players').style.display = 'flex';
-        }
+        function setupGame() {
+            document.getElementById('intro').style.display = 'none';
+            
+            // PixiJS Engine
+            app = new PIXI.Application({ 
+                background: '#010105', 
+                resizeTo: window, 
+                antialias: true,
+                resolution: window.devicePixelRatio || 1
+            });
+            document.body.appendChild(app.view);
 
-        function setPlayers(p) {
-            config.players = p;
-            document.getElementById('menu-players').style.display = 'none';
-            document.getElementById('game-ui').style.display = 'block';
-            buildUniverse();
-        }
+            pContainer = new PIXI.Container();
+            pContainer.x = app.screen.width / 2;
+            pContainer.y = app.screen.height / 2;
+            app.stage.addChild(pContainer);
 
-        function buildUniverse() {
-            const container = document.getElementById('game-container');
-            PLANETS.forEach((p, i) => {
-                const orb = document.createElement('div');
-                orb.className = 'orbit';
-                orb.style.width = orb.style.height = (p.d * 2) + 'px';
-                orb.style.color = p.c;
-                const wr = document.createElement('div');
-                wr.className = 'p-wrap';
-                wr.style.animationDuration = p.v + 's';
-                const pl = document.createElement('div');
-                pl.className = 'planet';
-                pl.style.width = pl.style.height = p.s + 'px';
-                pl.style.backgroundColor = p.c;
-                pl.innerHTML = `<span class="p-text">${p.id}</span>`;
+            // Soleil central
+            const sun = new PIXI.Graphics();
+            sun.beginFill(0xFFCC00);
+            sun.drawCircle(0, 0, 50);
+            sun.endFill();
+            pContainer.addChild(sun);
+
+            // Création des orbites et planètes
+            CONFIG.planets.forEach((p, i) => {
+                // Orbite
+                const orbit = new PIXI.Graphics();
+                orbit.lineStyle(2, 0x333333);
+                orbit.drawCircle(0, 0, p.d);
+                pContainer.addChild(orbit);
+
+                // Planète
+                const planet = new PIXI.Graphics();
+                planet.beginFill(p.color);
+                planet.drawCircle(0, 0, p.size);
+                planet.endFill();
+                planet.x = p.d;
+                planet.interactive = true;
+                planet.cursor = 'pointer';
+                planet.active = false;
                 
-                pl.onpointerdown = (e) => {
-                    e.stopPropagation();
-                    const osc = audioCtx.createOscillator();
-                    const g = audioCtx.createGain();
-                    osc.type = 'triangle';
-                    osc.frequency.setValueAtTime(FREQS[config.gamme][i], audioCtx.currentTime);
-                    g.gain.setValueAtTime(0, audioCtx.currentTime);
-                    g.gain.linearRampToValueAtTime(0.5, audioCtx.currentTime + 0.05);
-                    g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 1.2);
-                    osc.connect(g); g.connect(audioCtx.destination);
-                    osc.start(); osc.stop(audioCtx.currentTime + 1.2);
-                    orb.classList.add('orbit-active');
-                    setTimeout(() => orb.classList.remove('orbit-active'), 500);
-                };
-                wr.appendChild(pl); orb.appendChild(wr); container.appendChild(orb);
+                // Effet au clic (PointerDown pour Android)
+                planet.on('pointerdown', () => {
+                    planet.active = !planet.active;
+                    planet.alpha = planet.active ? 1 : 0.4;
+                    if(planet.active) playNote(i);
+                });
+                planet.alpha = 0.4;
+
+                // Animation de rotation propre
+                p.graphic = planet;
+                p.angle = Math.random() * Math.PI * 2;
+                pContainer.addChild(planet);
+            });
+
+            // Rayon Pulsar (Séquenceur)
+            line = new PIXI.Graphics();
+            app.stage.addChild(line);
+
+            app.ticker.add(gameLoop);
+        }
+
+        function playNote(index) {
+            const freq = CONFIG.gamme[index % CONFIG.gamme.length];
+            synth.triggerAttackRelease(freq, "8n");
+        }
+
+        let sweepAngle = 0;
+        function gameLoop(delta) {
+            sweepAngle += 0.02 * delta;
+            
+            // Dessiner la ligne du séquenceur
+            line.clear();
+            line.lineStyle(3, 0x00ffcc, 0.5);
+            line.moveTo(app.screen.width/2, app.screen.height/2);
+            const lx = app.screen.width/2 + Math.cos(sweepAngle) * 800;
+            const ly = app.screen.height/2 + Math.sin(sweepAngle) * 800;
+            line.lineTo(lx, ly);
+
+            CONFIG.planets.forEach((p, i) => {
+                p.angle += p.speed * delta;
+                p.graphic.x = Math.cos(p.angle) * p.d;
+                p.graphic.y = Math.sin(p.angle) * p.d;
+
+                // Détection de passage du séquenceur (Collision angulaire)
+                let diff = (sweepAngle % (Math.PI * 2)) - (p.angle % (Math.PI * 2));
+                if (Math.abs(diff) < 0.05 && p.graphic.active) {
+                    playNote(i);
+                    p.graphic.scale.set(1.3);
+                } else {
+                    p.graphic.scale.set(1);
+                }
             });
         }
     </script>
