@@ -2,156 +2,186 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>GamAflak Musical</title>
+<title>GamAflak Complet</title>
 <style>
-    body { margin:0; background:black; overflow:hidden; font-family:Arial, sans-serif; color:white;}
-    #overlay {
-        position:absolute; width:100%; height:100%; background:rgba(0,0,0,0.85);
-        display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10;
-        color:white; font-size:24px; text-align:center;
-    }
-    input { font-size:18px; margin:5px; padding:5px;}
-    button { font-size:18px; margin:5px; padding:5px; cursor:pointer;}
+  body { margin:0; background:black; overflow:hidden; font-family:Arial, sans-serif; color:white;}
+  #overlay {
+      position:absolute; width:100%; height:100%; background:rgba(0,0,0,0.85);
+      display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10;
+      color:white; font-size:24px; text-align:center;
+  }
+  input { font-size:18px; margin:5px; padding:5px;}
+  button { font-size:18px; margin:5px; padding:5px; cursor:pointer;}
 </style>
 </head>
 <body>
 
 <div id="overlay">
-    <div id="introText">Fusion des mots: "Game" + "Aflak"</div>
-    <button id="startIntro">Démarrer</button>
+  <div id="introText">Préparez-vous pour GamAflak</div>
+  <button id="startIntro">Démarrer</button>
 </div>
 
 <canvas id="gameCanvas"></canvas>
 
 <script>
-const canvas = document.getElementById("gameCanvas");
-const ctx = canvas.getContext("2d");
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+const canvas=document.getElementById("gameCanvas");
+const ctx=canvas.getContext("2d");
+canvas.width=window.innerWidth; canvas.height=window.innerHeight;
 
-let paused = false;
-let gameStarted = false;
-let players = [];
-let playerCount = 1;
+// GLOBALS
+let paused=false, gameStarted=false, players=[], playerCount=1;
+let tempo=120, lastTick=0, selectedNote=null, score=0;
 
-// PLANETS DATA
-const planets = [
-    {code:"Me", color:"#555", size:25, dist:50, speed:0.024, angle:0, note:261},   // C4
-    {code:"Ve", color:"#e6d690", size:35, dist:80, speed:0.018, angle:0, note:293}, // D4
-    {code:"Ea", color:"#2a6cff", size:40, dist:110, speed:0.015, angle:0, note:329},// E4
-    {code:"Ma", color:"#c1440e", size:30, dist:140, speed:0.012, angle:0, note:349},// F4
-    {code:"Ju", color:"#d18b47", size:70, dist:190, speed:0.009, angle:0, note:392}, // G4
-    {code:"Sa", color:"#d9c58b", size:60, dist:240, speed:0.007, angle:0, note:440, ring:true}, // A4
-    {code:"Ur", color:"#7fdbff", size:50, dist:290, speed:0.006, angle:0, note:493, ringThin:true},// B4
-    {code:"Ne", color:"#1b3fff", size:50, dist:340, speed:0.0048, angle:0, note:523} // C5
+// PLANETS DATA (taille ×3, volumes ajustés)
+const planets=[
+  {code:"Me", color:"#555", size:15*3, dist:50, speed:0.024, angle:0, noteDo:261, noteSol:392, lastHit:0},
+  {code:"Ve", color:"#e6d690", size:12*3, dist:80, speed:0.018, angle:0, noteDo:293, noteSol:440, lastHit:0},
+  {code:"Ea", color:"#2a6cff", size:13*3, dist:110, speed:0.015, angle:0, noteDo:329, noteSol:493, lastHit:0},
+  {code:"Ma", color:"#c1440e", size:11*3, dist:140, speed:0.012, angle:0, noteDo:349, noteSol:523, lastHit:0},
+  {code:"Ju", color:"#d18b47", size:20*3, dist:190, speed:0.009, angle:0, noteDo:392, noteSol:587, lastHit:0},
+  {code:"Sa", color:"#d9c58b", size:18*3, dist:240, speed:0.007, angle:0, noteDo:440, noteSol:659, ring:true, lastHit:0},
+  {code:"Ur", color:"#7fdbff", size:15*3, dist:290, speed:0.006, angle:0, noteDo:493, noteSol:698, ringThin:true, lastHit:0},
+  {code:"Ne", color:"#1b3fff", size:15*3, dist:340, speed:0.0048, angle:0, noteDo:523, noteSol:784, lastHit:0}
 ];
 
 // AUDIO
-const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-function playNote(freq, duration=0.5){
-    const osc = audioCtx.createOscillator();
-    const gain = audioCtx.createGain();
-    osc.frequency.value = freq;
-    osc.type = "sine";
-    osc.connect(gain);
-    gain.connect(audioCtx.destination);
-    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime+duration);
-    osc.start();
-    osc.stop(audioCtx.currentTime+duration);
+const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+function playNote(freq,duration=0.4){
+  const osc=audioCtx.createOscillator();
+  const gain=audioCtx.createGain();
+  osc.frequency.value=freq; osc.type="sine";
+  osc.connect(gain); gain.connect(audioCtx.destination);
+  gain.gain.setValueAtTime(0.2,audioCtx.currentTime);
+  gain.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+duration);
+  osc.start(); osc.stop(audioCtx.currentTime+duration);
+}
+function playCollision(){ // son choc intro
+  playNote(200,0.2);
+  playNote(400,0.2);
+  playNote(600,0.2);
 }
 
-// DRAW FUNCTION
-function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
-    const cx=canvas.width/2, cy=canvas.height/2;
+// DRAW
+function draw(timestamp){
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const cx=canvas.width/2, cy=canvas.height/2;
 
-    // SUN
-    ctx.beginPath();
-    ctx.arc(cx,cy,25,0,Math.PI*2);
-    ctx.fillStyle="yellow"; ctx.fill();
-    ctx.fillStyle="black"; ctx.font="bold 18px Arial";
-    ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("S",cx,cy);
+  // SUN
+  ctx.beginPath(); ctx.arc(cx,cy,25,0,Math.PI*2); ctx.fillStyle="yellow"; ctx.fill();
+  ctx.fillStyle="black"; ctx.font="bold 18px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("S",cx,cy);
 
-    // Planets
-    planets.forEach(p=>{
-        // Orbit
-        ctx.beginPath(); ctx.arc(cx,cy,p.dist,0,Math.PI*2); ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.stroke();
+  // PLANETS
+  planets.forEach(p=>{
+    ctx.beginPath(); ctx.arc(cx,cy,p.dist,0,Math.PI*2); ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.stroke();
+    const x=cx+Math.cos(p.angle)*p.dist; const y=cy+Math.sin(p.angle)*p.dist;
+    ctx.beginPath(); ctx.arc(x,y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
 
-        const x=cx+Math.cos(p.angle)*p.dist;
-        const y=cy+Math.sin(p.angle)*p.dist;
+    // Rings réalistes
+    if(p.ring){ ctx.beginPath(); ctx.ellipse(x,y,p.size+12,p.size+4,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#d2b87c"; ctx.lineWidth=2; ctx.stroke();}
+    if(p.ringThin){ ctx.beginPath(); ctx.ellipse(x,y,p.size+8,p.size+2,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#aeefff"; ctx.lineWidth=1; ctx.stroke();}
 
-        // Planet
-        ctx.beginPath(); ctx.arc(x,y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+    // Texte lisible
+    ctx.fillStyle= (p.color=="#e6d690"||p.color=="#d9c58b")?"black":"white";
+    ctx.font="bold 14px Arial"; ctx.fillText(p.code,x,y);
 
-        // Rings
-        if(p.ring){ ctx.beginPath(); ctx.ellipse(x,y,p.size+12,p.size+4,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#e6d690"; ctx.stroke(); }
-        if(p.ringThin){ ctx.beginPath(); ctx.ellipse(x,y,p.size+8,p.size+2,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#aeefff"; ctx.stroke(); }
+    if(!paused) p.angle+=p.speed;
+    p.x=x; p.y=y;
 
-        // Text
-        ctx.fillStyle=p.color=="#e6d690"?"black":"white";
-        ctx.font="bold 14px Arial"; ctx.fillText(p.code,x,y);
+    // Rythme automatique
+    if(gameStarted && timestamp - p.lastHit > (60000/tempo)){
+      const freq = selectedNote==="Do"?p.noteDo:p.noteSol;
+      playNote(freq); p.lastHit=timestamp;
+      const orig=p.size; p.size+=5; setTimeout(()=>p.size=orig,100);
+    }
+  });
 
-        // Animation angle
-        if(!paused) p.angle+=p.speed;
-        p.x=x; p.y=y;
-    });
-
-    requestAnimationFrame(draw);
+  requestAnimationFrame(draw);
 }
 
-// CLICK HANDLING
-canvas.addEventListener("click",e=>{
-    const rect=canvas.getBoundingClientRect();
-    const mx=e.clientX-rect.left; const my=e.clientY-rect.top;
-    const cx=canvas.width/2; const cy=canvas.height/2;
+// CLICK
+canvas.addEventListener("click", e=>{
+  const rect=canvas.getBoundingClientRect();
+  const mx=e.clientX-rect.left; const my=e.clientY-rect.top;
+  const cx=canvas.width/2; const cy=canvas.height/2;
 
-    // SUN
-    if(Math.sqrt((mx-cx)**2+(my-cy)**2)<25){ paused=!paused; return; }
+  if(Math.sqrt((mx-cx)**2+(my-cy)**2)<25){ paused=!paused; return; }
 
-    // Planets
-    planets.forEach(p=>{
-        if(Math.sqrt((mx-p.x)**2+(my-p.y)**2)<p.size+5){
-            playNote(p.note);
-            // Pulsation visuelle rapide
-            const origSize=p.size; p.size+=5; setTimeout(()=>p.size=origSize,100);
-        }
-    });
+  planets.forEach(p=>{
+    if(Math.sqrt((mx-p.x)**2+(my-p.y)**2)<p.size+5){
+      const freq = selectedNote==="Do"?p.noteDo:p.noteSol;
+      playNote(freq);
+      const orig=p.size; p.size+=5; setTimeout(()=>p.size=orig,100);
+      // Score timing: si proche du dernier beat, +1
+      const diff = (performance.now()-p.lastHit);
+      if(diff < (60000/tempo)*0.3) score+=1;
+    }
+  });
 });
 
-// INTRO + PLAYER SELECTION
+// INTRO + COLLISION + CHOIX NOTE + JOUEURS
 const overlay=document.getElementById("overlay");
 const introText=document.getElementById("introText");
 const startIntro=document.getElementById("startIntro");
 
-startIntro.onclick = ()=>{
-    overlay.innerHTML=`<div>Sélectionnez le nombre de joueurs (1,2,4):</div>
-    <button onclick="setupPlayers(1)">1</button>
-    <button onclick="setupPlayers(2)">2</button>
-    <button onclick="setupPlayers(4)">4</button>`;
+startIntro.onclick=()=>{
+  overlay.innerHTML='';
+  // Collision visuelle des mots
+  const words=['Game','Aflak']; let x1=-200, x2=canvas.width+100;
+  const interval=setInterval(()=>{
+    overlay.innerHTML='';
+    overlay.style.display='flex';
+    const div1=document.createElement('div'); div1.style.color='red'; div1.style.fontSize='48px';
+    div1.style.position='absolute'; div1.style.left=x1+'px'; div1.innerText='Game';
+    overlay.appendChild(div1);
+    const div2=document.createElement('div'); div2.style.color='green'; div2.style.fontSize='48px';
+    div2.style.position='absolute'; div2.style.left=x2+'px'; div2.innerText='Aflak';
+    overlay.appendChild(div2);
+    x1+=15; x2-=15;
+    if(x1>=canvas.width/2-60){ clearInterval(interval); playCollision();
+      overlay.innerHTML='<div style="font-size:48px; color:white">GamAflak</div>';
+      setTimeout(chooseNote,1000);
+    }
+  },50);
 };
 
+function chooseNote(){
+  overlay.innerHTML=`<div>Choisissez votre note: Do ou Sol</div>
+  <button onclick="selectNote('Do')">Do</button>
+  <button onclick="selectNote('Sol')">Sol</button>`;
+}
+
+function selectNote(n){
+  selectedNote=n;
+  setupPlayerSelection();
+}
+
+function setupPlayerSelection(){
+  overlay.innerHTML=`<div>Sélectionnez le nombre de joueurs (1,2,4):</div>
+  <button onclick="setupPlayers(1)">1</button>
+  <button onclick="setupPlayers(2)">2</button>
+  <button onclick="setupPlayers(4)">4</button>`;
+}
+
 function setupPlayers(count){
-    playerCount=count; overlay.innerHTML="";
-    for(let i=1;i<=count;i++){
-        const input=document.createElement("input");
-        input.placeholder=`Nom du joueur ${i}`; input.id=`player${i}`;
-        overlay.appendChild(input); overlay.appendChild(document.createElement("br"));
-    }
-    const btn=document.createElement("button"); btn.innerText="Commencer le jeu";
-    btn.onclick=startGame; overlay.appendChild(btn);
+  playerCount=count; overlay.innerHTML='';
+  for(let i=1;i<=count;i++){
+    const input=document.createElement('input'); input.placeholder=`Nom du joueur ${i}`; input.id=`player${i}`;
+    overlay.appendChild(input); overlay.appendChild(document.createElement('br'));
+  }
+  const btn=document.createElement('button'); btn.innerText="Commencer le jeu"; btn.onclick=startGame;
+  overlay.appendChild(btn);
 }
 
 function startGame(){
-    players=[]; for(let i=1;i<=playerCount;i++){
-        const name=document.getElementById(`player${i}`).value||`Player ${i}`;
-        players.push(name);
-    }
-    overlay.style.display="none"; gameStarted=true; draw();
+  players=[]; for(let i=1;i<=playerCount;i++){
+    const name=document.getElementById(`player${i}`).value||`Player ${i}`; players.push(name);
+  }
+  overlay.style.display='none'; gameStarted=true; requestAnimationFrame(draw);
 }
 
 // RESIZE
 window.addEventListener("resize",()=>{ canvas.width=window.innerWidth; canvas.height=window.innerHeight; });
+
 </script>
 </body>
 </html>
