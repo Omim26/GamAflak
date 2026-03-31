@@ -2,12 +2,12 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>GamAflak Musical Score</title>
+<title>GamAflak Avancé</title>
 <style>
-  body {margin:0; background:black; overflow:hidden; font-family:Arial, sans-serif; color:white;}
-  #overlay {position:absolute; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; color:white; font-size:24px; text-align:center;}
-  input {font-size:18px; margin:5px; padding:5px;}
-  button {font-size:18px; margin:5px; padding:5px; cursor:pointer;}
+body {margin:0; background:black; overflow:hidden; font-family:Arial, sans-serif; color:white;}
+#overlay {position:absolute; width:100%; height:100%; background:rgba(0,0,0,0.85); display:flex; flex-direction:column; justify-content:center; align-items:center; z-index:10; color:white; font-size:24px; text-align:center;}
+input {font-size:18px; margin:5px; padding:5px;}
+button {font-size:18px; margin:5px; padding:5px; cursor:pointer;}
 </style>
 </head>
 <body>
@@ -24,24 +24,31 @@ const canvas=document.getElementById("gameCanvas");
 const ctx=canvas.getContext("2d");
 canvas.width=window.innerWidth; canvas.height=window.innerHeight;
 
-// GLOBALS
-let paused=false, gameStarted=false, players=[], playerCount=1;
-let tempo=120, selectedNote=null;
+let paused=false, gameStarted=false, players=[], playerCount=1, gameDuration=60;
+let startTime=null, selectedNote=null;
 
 // PLAYER SCORES
 let playerScores=[];
 
-// PLANETS (volumes ×3)
+// PLANETS avec orbites proportionnelles
 const planets=[
-  {code:"Me", color:"#555", size:15*3, dist:50, speed:0.024, angle:0, noteDo:261, noteSol:392, lastHit:0},
-  {code:"Ve", color:"#e6d690", size:12*3, dist:80, speed:0.018, angle:0, noteDo:293, noteSol:440, lastHit:0},
-  {code:"Ea", color:"#2a6cff", size:13*3, dist:110, speed:0.015, angle:0, noteDo:329, noteSol:493, lastHit:0},
-  {code:"Ma", color:"#c1440e", size:11*3, dist:140, speed:0.012, angle:0, noteDo:349, noteSol:523, lastHit:0},
-  {code:"Ju", color:"#d18b47", size:20*3, dist:190, speed:0.009, angle:0, noteDo:392, noteSol:587, lastHit:0},
-  {code:"Sa", color:"#d9c58b", size:18*3, dist:240, speed:0.007, angle:0, noteDo:440, noteSol:659, ring:true, lastHit:0},
-  {code:"Ur", color:"#7fdbff", size:15*3, dist:290, speed:0.006, angle:0, noteDo:493, noteSol:698, ringThin:true, lastHit:0},
-  {code:"Ne", color:"#1b3fff", size:15*3, dist:340, speed:0.0048, angle:0, noteDo:523, noteSol:784, lastHit:0}
+  {code:"Me", color:"#555", size:5, dist:50, speed:0.024, angle:0, noteDo:261, noteSol:392, lastHit:0, flash:0},
+  {code:"Ve", color:"#e6d690", size:12, dist:80, speed:0.018, angle:0, noteDo:293, noteSol:440, lastHit:0, flash:0},
+  {code:"Ea", color:"#2a6cff", size:13, dist:110, speed:0.015, angle:0, noteDo:329, noteSol:493, lastHit:0, flash:0},
+  {code:"Ma", color:"#c1440e", size:11, dist:140, speed:0.012, angle:0, noteDo:349, noteSol:523, lastHit:0, flash:0},
+  {code:"Ju", color:"#d18b47", size:20, dist:190, speed:0.009, angle:0, noteDo:392, noteSol:587, lastHit:0, flash:0},
+  {code:"Sa", color:"#d9c58b", size:18, dist:240, speed:0.007, angle:0, noteDo:440, noteSol:659, ring:true, lastHit:0, flash:0},
+  {code:"Ur", color:"#7fdbff", size:15, dist:290, speed:0.006, angle:0, noteDo:493, noteSol:698, ringThin:true, lastHit:0, flash:0},
+  {code:"Ne", color:"#1b3fff", size:15, dist:340, speed:0.0048, angle:0, noteDo:523, noteSol:784, lastHit:0, flash:0}
 ];
+
+// Ceinture d'astéroïdes entre Mars et Jupiter
+let asteroids=[];
+for(let i=0;i<50;i++){
+  const r=Math.random()*(190-140)+140; // entre Mars et Jupiter
+  const theta=Math.random()*Math.PI*2;
+  asteroids.push({r,theta, size:Math.random()*2+1});
+}
 
 // AUDIO
 const audioCtx=new (window.AudioContext||window.webkitAudioContext)();
@@ -56,8 +63,12 @@ function playNote(freq,duration=0.4){
 }
 function playCollision(){playNote(200,0.2); playNote(400,0.2); playNote(600,0.2);}
 
-// DRAW
+// DRAW FUNCTION
 function draw(timestamp){
+  if(!startTime) startTime=timestamp;
+  const elapsed=(timestamp-startTime)/1000;
+  if(elapsed>=gameDuration){ endGame(); return; }
+
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const cx=canvas.width/2, cy=canvas.height/2;
 
@@ -65,21 +76,46 @@ function draw(timestamp){
   ctx.beginPath(); ctx.arc(cx,cy,25,0,Math.PI*2); ctx.fillStyle="yellow"; ctx.fill();
   ctx.fillStyle="black"; ctx.font="bold 18px Arial"; ctx.textAlign="center"; ctx.textBaseline="middle"; ctx.fillText("S",cx,cy);
 
+  // PLANET ORBITS
+  planets.forEach(p=>{
+    ctx.beginPath();
+    ctx.arc(cx,cy,p.dist,0,Math.PI*2);
+    // Illumination orbit on flash
+    ctx.strokeStyle = p.flash>0?p.color:'rgba(255,255,255,0.1)';
+    ctx.lineWidth=p.flash>0?3:1;
+    ctx.stroke();
+    if(p.flash>0) p.flash -=1;
+  });
+
+  // ASTEROIDS
+  asteroids.forEach(a=>{
+    const x=cx+Math.cos(a.theta)*a.r;
+    const y=cy+Math.sin(a.theta)*a.r;
+    ctx.beginPath(); ctx.arc(x,y,a.size,0,Math.PI*2); ctx.fillStyle="grey"; ctx.fill();
+  });
+
   // PLANETS
   planets.forEach(p=>{
-    ctx.beginPath(); ctx.arc(cx,cy,p.dist,0,Math.PI*2); ctx.strokeStyle="rgba(255,255,255,0.1)"; ctx.stroke();
     const x=cx+Math.cos(p.angle)*p.dist; const y=cy+Math.sin(p.angle)*p.dist;
     ctx.beginPath(); ctx.arc(x,y,p.size,0,Math.PI*2); ctx.fillStyle=p.color; ctx.fill();
+
     if(p.ring){ ctx.beginPath(); ctx.ellipse(x,y,p.size+12,p.size+4,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#d2b87c"; ctx.lineWidth=2; ctx.stroke();}
     if(p.ringThin){ ctx.beginPath(); ctx.ellipse(x,y,p.size+8,p.size+2,Math.PI/6,0,Math.PI*2); ctx.strokeStyle="#aeefff"; ctx.lineWidth=1; ctx.stroke();}
-    ctx.fillStyle= (p.color=="#e6d690"||p.color=="#d9c58b")?"black":"white"; ctx.font="bold 14px Arial"; ctx.fillText(p.code,x,y);
-    if(!paused) p.angle+=p.speed;
-    p.x=x; p.y=y;
 
-    // Beat automatique
-    if(gameStarted && timestamp - p.lastHit > (60000/tempo)){
+    ctx.fillStyle=(p.color=="#e6d690"||p.color=="#d9c58b")?"black":"white";
+    ctx.font="bold 14px Arial"; ctx.fillText(p.code,x,y);
+
+    // Flash effect
+    if(p.flash>0){
+      ctx.beginPath(); ctx.arc(x,y,p.size+10,0,Math.PI*2); ctx.strokeStyle=p.color; ctx.lineWidth=2; ctx.stroke();
+    }
+
+    if(!paused) p.angle+=p.speed;
+
+    // Beat auto
+    if(gameStarted && timestamp - p.lastHit > (60000/120)){
       const freq = selectedNote==="Do"?p.noteDo:p.noteSol;
-      playNote(freq); p.lastHit=timestamp; const orig=p.size; p.size+=5; setTimeout(()=>p.size=orig,100);
+      playNote(freq); p.lastHit=timestamp;
     }
   });
 
@@ -102,20 +138,39 @@ canvas.addEventListener("click", e=>{
   if(Math.sqrt((mx-cx)**2+(my-cy)**2)<25){ paused=!paused; return; }
 
   planets.forEach(p=>{
-    if(Math.sqrt((mx-p.x)**2+(my-p.y)**2)<p.size+5){
+    const x=cx+Math.cos(p.angle)*p.dist;
+    const y=cy+Math.sin(p.angle)*p.dist;
+    if(Math.sqrt((mx-x)**2+(my-y)**2)<p.size+5){
       const freq = selectedNote==="Do"?p.noteDo:p.noteSol;
-      playNote(freq);
-      const orig=p.size; p.size+=5; setTimeout(()=>p.size=orig,100);
+      playNote(freq); const orig=p.size; p.size+=3; setTimeout(()=>p.size=orig,100);
+      p.flash=3; // illumination orbit
+
       // SCORE & COMBO
       players.forEach((pl,i)=>{
         const diff = performance.now()-p.lastHit;
-        if(diff<(60000/tempo)*0.3){ // en rythme
-          playerScores[i].score+=10; playerScores[i].combo+=1;
-        } else { playerScores[i].combo=0; }
+        if(diff<(60000/120)*0.3){ playerScores[i].score+=10; playerScores[i].combo+=1; }
+        else { playerScores[i].combo=0; }
       });
     }
   });
 });
+
+// END GAME
+function endGame(){
+  gameStarted=false;
+  overlay.style.display='flex';
+  overlay.innerHTML='<h1>Fin du jeu !</h1>';
+  const ranking = players.map((p,i)=>({name:p,score:playerScores[i].score,combo:playerScores[i].combo}))
+    .sort((a,b)=>b.score-a.score);
+  ranking.forEach((pl,i)=>{ overlay.innerHTML+=`<div>${i+1}. ${pl.name} - ${pl.score} pts (combo ${pl.combo})</div>`; });
+  overlay.innerHTML+=`<br><button onclick="restartGame()">Rejouer</button>`;
+}
+
+function restartGame(){
+  overlay.style.display='none';
+  players=[]; playerScores=[]; gameStarted=false; startTime=null;
+  startIntro.click();
+}
 
 // INTRO + COLLISION + NOTE + JOUEURS
 const overlay=document.getElementById("overlay");
