@@ -13,7 +13,7 @@ button {font-size:18px; margin:5px; padding:5px; cursor:pointer;}
 <body>
 
 <div id="overlay">
-  <div id="introText">Préparez-vous pour GamAflak</div>
+  <div id="introText"> GamAflak </div>
   <button id="startIntro">Démarrer</button>
 </div>
 
@@ -43,9 +43,22 @@ const planets=[
 // DENSE ASTEROID BELT between Mars and Jupiter
 let asteroids=[];
 for(let i=0;i<80;i++){ // plus dense
-  const r=140 + Math.random()*50; // entre Mars et Jupiter
+  const r=155 + Math.random()*20;      // bande plus serrée  entre Mars et Jupiter
   const theta=Math.random()*Math.PI*2;
   asteroids.push({r,theta, size:Math.random()*2+1});
+  
+  asteroids.forEach(a=>{
+    a.theta += 0.0005; // rotation lente
+    const x=cx+Math.cos(a.theta)*a.r;
+    const y=cy+Math.sin(a.theta)*a.r;
+    ctx.beginPath();
+    ctx.arc(x,y,a.size,0,Math.PI*2);
+    ctx.fillStyle="grey";
+    ctx.fill();
+  });
+  
+  
+  
 }
 
 // AUDIO
@@ -69,6 +82,7 @@ function draw(timestamp){
 
   ctx.clearRect(0,0,canvas.width,canvas.height);
   const cx=canvas.width/2, cy=canvas.height/2;
+  a.theta += 0.0005; // mouvement orbital lent
 
   // SUN
   ctx.beginPath(); ctx.arc(cx,cy,25,0,Math.PI*2); ctx.fillStyle="yellow"; ctx.fill();
@@ -81,7 +95,7 @@ function draw(timestamp){
     ctx.strokeStyle = p.flash>0?p.color:'rgba(255,255,255,0.1)';
     ctx.lineWidth=p.flash>0?3:1;
     ctx.stroke();
-    if(p.flash>0) p.flash -=1;
+    if(p.flash>0) p.flash -=0.1; // plus lent = visible
   });
 
   // ASTEROIDS
@@ -136,6 +150,8 @@ canvas.addEventListener("click", e=>{
       playNote(freq);
       const orig=p.size; p.size+=3; setTimeout(()=>p.size=orig,100);
       p.flash=3; // illumination orbit
+	  
+	          //  p.lastHit = performance.now();      //  indispensable
 
       // SCORE & COMBO
       players.forEach((pl,i)=>{
@@ -143,6 +159,9 @@ canvas.addEventListener("click", e=>{
         if(diff<500){ playerScores[i].score+=10; playerScores[i].combo+=1; }
         else { playerScores[i].combo=0; }
       });
+	  
+	  p.lastHit = performance.now();      //  indispensable
+	  
     }
   });
 });
