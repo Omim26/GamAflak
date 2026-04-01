@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<title>GamAflak - Core</title>
+<title>GamAflak - Core FIX</title>
 <style>
 body { margin:0; background:black; overflow:hidden; }
 #overlay {
@@ -39,7 +39,9 @@ function resize(){
 resize();
 window.addEventListener("resize", resize);
 
-// ===== PLANET TEST =====
+let paused = false;
+
+// ===== PLANET =====
 const planet = {
   dist: 150,
   angle: 0,
@@ -47,7 +49,8 @@ const planet = {
   size: 12,
   color: "blue",
   x: 0,
-  y: 0
+  y: 0,
+  flash: 0
 };
 
 // ===== LOOP =====
@@ -60,8 +63,14 @@ function loop(){
   // SUN
   ctx.beginPath();
   ctx.arc(cx, cy, 25, 0, Math.PI*2);
-  ctx.fillStyle = "yellow";
+  ctx.fillStyle = paused ? "orange" : "yellow";
   ctx.fill();
+
+  ctx.fillStyle = "black";
+  ctx.font = "bold 16px Arial";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("S", cx, cy);
 
   // ORBIT
   ctx.beginPath();
@@ -69,16 +78,28 @@ function loop(){
   ctx.strokeStyle = "rgba(255,255,255,0.2)";
   ctx.stroke();
 
-  // PLANET
+  // PLANET POSITION
   planet.x = cx + Math.cos(planet.angle) * planet.dist;
   planet.y = cy + Math.sin(planet.angle) * planet.dist;
 
+  // PLANET
   ctx.beginPath();
   ctx.arc(planet.x, planet.y, planet.size, 0, Math.PI*2);
   ctx.fillStyle = planet.color;
   ctx.fill();
 
-  planet.angle += planet.speed;
+  // FLASH VISUEL
+  if(planet.flash > 0){
+    ctx.beginPath();
+    ctx.arc(planet.x, planet.y, planet.size + 6, 0, Math.PI*2);
+    ctx.strokeStyle = "white";
+    ctx.stroke();
+    planet.flash -= 0.2;
+  }
+
+  if(!paused){
+    planet.angle += planet.speed;
+  }
 
   requestAnimationFrame(loop);
 }
@@ -89,15 +110,30 @@ canvas.addEventListener("click", e=>{
   const mx = e.clientX - rect.left;
   const my = e.clientY - rect.top;
 
+  const cx = canvas.width/2;
+  const cy = canvas.height/2;
+
+  // CLICK SUN (pause / play)
+  const dxSun = mx - cx;
+  const dySun = my - cy;
+
+  if(Math.sqrt(dxSun*dxSun + dySun*dySun) < 25){
+    paused = !paused;
+    console.log(paused ? "PAUSE" : "PLAY");
+    return;
+  }
+
+  // CLICK PLANET
   const dx = mx - planet.x;
   const dy = my - planet.y;
 
   if(Math.sqrt(dx*dx + dy*dy) < planet.size){
-    console.log("PLANET CLICKED");
+    console.log("PLANET CLICKED ✅");
+    planet.flash = 3;
   }
 });
 
-// ===== START =====
+// START
 document.getElementById("startBtn").onclick = ()=>{
   document.getElementById("overlay").style.display = "none";
   loop();
