@@ -32,6 +32,20 @@ button { font-size:20px; padding:10px; }
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 
+const SPEED_FACTOR = 0.4; // 40% de la vitesse
+
+
+
+let SPEED_FACTOR = 0.4;
+
+window.addEventListener("keydown", e=>{
+  if(e.key === "+") SPEED_FACTOR += 0.1;
+  if(e.key === "-") SPEED_FACTOR -= 0.1;
+  console.log("Speed:", SPEED_FACTOR);
+});
+
+
+
 function resize(){
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
@@ -98,7 +112,7 @@ function loop(){
   }
 
   if(!paused){
-    planet.angle += planet.speed;
+    planet.angle += planet.speed * SPEED_FACTOR;
   }
 
   requestAnimationFrame(loop);
